@@ -15,6 +15,7 @@
       
 ## 特别鸣谢
 
-- github用户[[SkyHao723]](https://github.com/SkyHao723): https://github.com/SkyHao723/arknightsSwitcher
+- 思路来源:[[2分钟教会你明日方舟PC端官服-B服互转！【明日方舟PC端】]](https://www.bilibili.com/video/BV1VHFRzoE7T/?spm_id_from=333.337.search-card.all.click&vd_source=ec94b95a235413f9ad5d2ccb4597ac9f)
+- Github用户[[SkyHao723]](https://github.com/SkyHao723): https://github.com/SkyHao723/arknightsSwitcher
 - 图标库: https://igoutu.cn/icons
 - 图标提取工具: ```Quick Any2Ico```
