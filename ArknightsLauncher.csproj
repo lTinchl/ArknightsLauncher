@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<AssemblyName>ArknightsLauncher(官服)</AssemblyName>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+
+		<UseWindowsForms>true</UseWindowsForms>
+
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<SelfContained>true</SelfContained>
+		<PublishSingleFile>true</PublishSingleFile>
+
+		<ApplicationIcon>Arknights.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Payload\**\*"
+						  LogicalName="Payload/%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
+</Project>
