@@ -101,6 +101,7 @@ class Program
         }
     }
 
+
     public static void StartArknights(string rootPath)
     {
         string exePath = Path.Combine(rootPath, "Arknights.exe");
