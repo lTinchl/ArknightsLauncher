@@ -437,7 +437,7 @@ class Program
                     foreach (var proc in Process.GetProcessesByName("Arknights"))
                     {
                         proc.Kill();
-                        proc.WaitForExit(5000); // 等待进程真正结束
+                        proc.WaitForExit(); // 等待进程真正结束
                         
                     }
                 }
@@ -469,10 +469,6 @@ class Program
                     if (Directory.Exists(backupFolder))
                     {
                         CopyDirectory(backupFolder, sdkDir);  // 复制 A1 备份到 sdk_data_*
-                    }
-                    else
-                    {
-                        MessageBox.Show("未找到 账号1 文件夹", "错误");
                     }
                 }
                 using var launchForm = new LaunchForm(type);
