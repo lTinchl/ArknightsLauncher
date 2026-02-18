@@ -3,7 +3,7 @@
 ## 简介
 
 >此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,整合添加了图形化操作界面并添加新功能。
-软件截图<img width="319" height="250" alt="ArknightsLauncher" src="https://github.com/user-attachments/assets/e0fb8c67-1347-42dd-a599-a8bcdb9decf4" />
+<img width="319" height="250" alt="ArknightsLauncher" src="https://github.com/user-attachments/assets/e0fb8c67-1347-42dd-a599-a8bcdb9decf4" />
 
 
 ## 注意事项
