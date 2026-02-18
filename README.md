@@ -4,7 +4,15 @@
 
 >此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
 
-
+### 文件结构
+```
+├── Icons
+├── Payload              #官服替换用文件
+    └── [官服相关文件]
+├── Payload_B            #B服替换用文件
+    └── [B服相关文件]
+└── Program.cs
+```
 
 ## 注意事项
 - 软件的选择根目录缓存在(```C:\Users\用户名\AppData\Local\ArknightsLauncher\```),名字为```config.json```，如果需要重置软件请删除此文件
