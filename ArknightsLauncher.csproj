@@ -11,18 +11,20 @@
 		<SelfContained>true</SelfContained>		
 		<PublishSingleFile>true</PublishSingleFile>
 		<PublishTrimmed>false</PublishTrimmed>
-		
 
+		<ApplicationIcon>Icons\ArknightsLauncher.ico</ApplicationIcon>
 
 	</PropertyGroup>
 
 	<ItemGroup>
-		<EmbeddedResource Include="Payload\**\*"  />
+		<EmbeddedResource Include="Payload\**\*" />
 		<EmbeddedResource Include="Payload_B\**\*" />
+		<EmbeddedResource Include="Icons\GitHub.ico" />
 		
 		<EmbeddedResource Include="Icons\official.ico" />
 		<EmbeddedResource Include="Icons\bserver.ico" />
 		<EmbeddedResource Include="Icons\ArknightsLauncher.ico" />
+		<EmbeddedResource Include="Icons\MAA.ico" />
 	</ItemGroup>
 
 </Project>
