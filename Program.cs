@@ -11,11 +11,18 @@ using System.Windows.Forms;
 enum ServerType
 {
     Official, // 官服
-    Bilibili  // B服
+    Bilibili,  // B服
+    MAA_Official,  // MAA 官
+    MAA_Bilibili,  // MAA B
+    GitHub
 }
+
+    
 
 class Program
 {
+    const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
+
     static readonly string ConfigDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                      "ArknightsLauncher");
@@ -52,6 +59,23 @@ class Program
         return dialog.ShowDialog() == DialogResult.OK ? dialog.SelectedPath : "";
     }
 
+    public static string SelectExe(string title, string filterName)
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = title,
+            Filter = "MAA.exe|MAA.exe",
+            CheckFileExists = true,
+            CheckPathExists = true,
+            Multiselect = false
+        };
+
+        return dialog.ShowDialog() == DialogResult.OK
+            ? dialog.FileName
+            : "";
+    }
+
+
     public static string LoadRootPath()
     {
         if (!File.Exists(ConfigFile)) return "";
@@ -63,6 +87,8 @@ class Program
         catch { return ""; }
     }
 
+
+
     public static void SaveRootPath(string path)
     {
         Directory.CreateDirectory(ConfigDir);
@@ -70,6 +96,28 @@ class Program
                                             new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(ConfigFile, json);
     }
+
+    public static AppConfig LoadConfig()
+    {
+        if (!File.Exists(ConfigFile)) return new AppConfig();
+        try
+        {
+            return JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(ConfigFile))
+                   ?? new AppConfig();
+        }
+        catch
+        {
+            return new AppConfig();
+        }
+    }
+
+    public static void SaveConfig(AppConfig cfg)
+    {
+        Directory.CreateDirectory(ConfigDir);
+        File.WriteAllText(ConfigFile,
+            JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true }));
+    }
+
 
     public static void ExtractAndOverwrite(string targetRoot, string payloadFolder)
     {
@@ -82,7 +130,7 @@ class Program
 
         foreach (var res in resources)
         {
-            // 修正相对路径，保留扩展名
+            
             string relativePath = res.Substring(prefix.Length);
             int lastDot = relativePath.LastIndexOf('.');
             if (lastDot != -1)
@@ -115,7 +163,43 @@ class Program
         });
     }
 
-    class AppConfig { public string RootPath { get; set; } = ""; }
+    public static void StartMAA(string exePath)
+    {
+        if (!File.Exists(exePath))
+            throw new Exception("未找到 MAA.exe");
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = exePath,
+            WorkingDirectory = Path.GetDirectoryName(exePath)!,
+            UseShellExecute = true
+        });
+    }
+
+    public static void OpenGitHub()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = GitHubUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("无法打开浏览器\n" + ex.Message, "错误");
+        }
+    }
+
+
+    public class AppConfig
+    {
+        public string RootPath { get; set; } = "";     // Arknights
+        public string MAA_Official { get; set; } = ""; //MAA 官
+        public string MAA_Bilibili { get; set; } = ""; //MAA B
+    }
+
 
     class LaunchForm : Form
     {
@@ -125,8 +209,23 @@ class Program
         {
             _serverType = serverType;
 
-            Text = serverType == ServerType.Official ? "Arknights Launcher(官服)" : "Arknights Launcher(B服)";
-            Icon = Program.LoadIcon(serverType == ServerType.Official ? "official.ico" : "bserver.ico");
+            Text = serverType switch
+            {
+                ServerType.Official => "Arknights Launcher(官服)",
+                ServerType.Bilibili => "Arknights Launcher(B服)",
+                ServerType.MAA_Official => "MAA(官服)",
+                ServerType.MAA_Bilibili => "MAA(B服)",
+                _ => "Launcher"
+            };
+
+            Icon = serverType switch
+            {
+                ServerType.Official => Program.LoadIcon("official.ico"),
+                ServerType.Bilibili => Program.LoadIcon("bserver.ico"),
+                ServerType.MAA_Official => Program.LoadIcon("MAA.ico"),
+                ServerType.MAA_Bilibili => Program.LoadIcon("MAA.ico"),
+                _ => SystemIcons.Application
+            };
 
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -137,7 +236,10 @@ class Program
 
             Controls.Add(new Label
             {
-                Text = "正在启动 Arknights…",
+                Text = serverType == ServerType.MAA_Official ||
+                   serverType == ServerType.MAA_Bilibili
+                ? "正在启动 MAA…"
+                : "正在启动 Arknights…",
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Font = new Font("Segoe UI", 11)
@@ -150,23 +252,55 @@ class Program
         {
             try
             {
-                string rootPath = Program.LoadRootPath();
+                var cfg = Program.LoadConfig();
+
+                // ===== MAA 分支 =====
+                if (_serverType == ServerType.MAA_Official ||
+                    _serverType == ServerType.MAA_Bilibili)
+                {
+                    string exePath = _serverType == ServerType.MAA_Official
+                        ? cfg.MAA_Official
+                        : cfg.MAA_Bilibili;
+
+                    if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+                    {
+                        exePath = Program.SelectExe("请选择 MAA.exe", "MAA 程序");
+                        if (string.IsNullOrEmpty(exePath)) return;
+
+                        if (_serverType == ServerType.MAA_Official)
+                            cfg.MAA_Official = exePath;
+                        else
+                            cfg.MAA_Bilibili = exePath;
+
+                        Program.SaveConfig(cfg);
+                    }
+
+                    Program.StartMAA(exePath);
+                    await Task.Delay(2000);
+                    return;
+                }
+
+                // ===== Arknights 分支 =====
+                string rootPath = cfg.RootPath;
+
                 if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
                 {
                     rootPath = Program.SelectFolder();
                     if (string.IsNullOrEmpty(rootPath)) return;
-                    Program.SaveRootPath(rootPath);
+
+                    cfg.RootPath = rootPath;
+                    Program.SaveConfig(cfg);
                 }
 
-                string payloadFolder = _serverType == ServerType.Official ? "Payload" : "Payload_B";
+                string payloadFolder = _serverType == ServerType.Official
+                    ? "Payload"
+                    : "Payload_B";
 
                 await Task.Run(() =>
-                {
-                    Program.ExtractAndOverwrite(rootPath, payloadFolder);
-                });
+                    Program.ExtractAndOverwrite(rootPath, payloadFolder));
 
                 Program.StartArknights(rootPath);
-                await Task.Delay(5000); // 等待启动
+                await Task.Delay(3000);
             }
             catch (Exception ex)
             {
@@ -177,6 +311,8 @@ class Program
                 Close();
             }
         }
+
+
     }
 
     class ServerSelectForm : Form
@@ -188,12 +324,15 @@ class Program
             Text = "Arknights Launcher";
             Icon = Program.LoadIcon("ArknightsLauncher.ico");
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(320, 180);
+            ClientSize = new Size(320, 220);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
 
-            Controls.Add(CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(20, 25), ServerType.Official));
-            Controls.Add(CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(20, 95), ServerType.Bilibili));
+            Controls.Add(CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(20, 25), ServerType.Official));   // 官服
+            Controls.Add(CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(20, 95), ServerType.Bilibili));     // B服
+            Controls.Add(CreateServerButton("MAA-官", Program.LoadIcon("MAA.ico"), new Point(180, 25), ServerType.MAA_Official)); // MAA-官
+            Controls.Add(CreateServerButton("MAA-B", Program.LoadIcon("MAA.ico"), new Point(180, 95), ServerType.MAA_Bilibili)); //  MAA-B
+            Controls.Add(CreateServerButton_Git("By:Tinch", Program.LoadIcon("GitHub.ico"), new Point(100, 165) )); // Github
         }
 
         private Button CreateServerButton(string text, Icon icon, Point pos, ServerType type)
@@ -206,7 +345,7 @@ class Program
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 Font = new Font("Segoe UI", 11, FontStyle.Regular),
-                Size = new Size(280, 60),
+                Size = new Size(120, 60),
                 Location = pos,
                 FlatStyle = FlatStyle.Standard,
                 Padding = new Padding(10, 0, 0, 0),
@@ -219,6 +358,31 @@ class Program
                 DialogResult = DialogResult.OK;
                 Close();
             };
+            return btn;
+        }
+
+        private Button CreateServerButton_Git(string text, Icon icon, Point pos)
+        {
+            var btn = new Button
+            {
+                Text = text,
+                Image = icon.ToBitmap(),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 10, FontStyle.Regular),
+                Size = new Size(120, 40),
+                Location = pos,
+                FlatStyle = FlatStyle.Standard,
+                Padding = new Padding(10, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+
+            btn.Click += (_, __) =>
+            {
+                Program.OpenGitHub();
+            };
+
             return btn;
         }
     }
