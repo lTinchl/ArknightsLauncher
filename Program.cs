@@ -29,17 +29,22 @@ class Program
 
     static readonly string ConfigFile = Path.Combine(ConfigDir, "config.json");
 
+    static readonly string AccountBackupDir =Path.Combine(ConfigDir, "AccountBackups");
+
     [STAThread]
     static void Main()
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        Directory.CreateDirectory(AccountBackupDir);
 
         using var selectForm = new ServerSelectForm();
         if (selectForm.ShowDialog() != DialogResult.OK) return;
 
         Application.Run(new LaunchForm(selectForm.SelectedServer));
     }
+
+ 
 
     public static Icon LoadIcon(string name)
     {
@@ -192,6 +197,55 @@ class Program
         }
     }
 
+    public static void BackupAccount(string accountName)
+    {
+        // 获取 LocalLow 路径
+        string sdkPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "AppData", "LocalLow", "Hypergryph", "Arknights"
+        );
+
+        string target = Path.Combine(AccountBackupDir, accountName);
+
+        var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
+        if (sdkDir == null) return;
+
+        if (Directory.Exists(target)) Directory.Delete(target, true);
+        CopyDirectory(sdkDir, target);
+    }
+
+
+    public static void RestoreAccount(string accountName)
+    {
+        string sdkPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            @"Low\Hypergryph\Arknights"
+        );
+        string backupDir = Path.Combine(AccountBackupDir, accountName);
+
+        var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
+        if (sdkDir != null) Directory.Delete(sdkDir, true);
+
+        if (!Directory.Exists(backupDir)) return;
+
+        CopyDirectory(backupDir, sdkPath);
+    }
+
+    private static void CopyDirectory(string sourceDir, string targetDir)
+    {
+        Directory.CreateDirectory(targetDir);
+        foreach (var dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(dir.Replace(sourceDir, targetDir));
+        }
+
+        foreach (var file in Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
+        {
+            string targetFile = file.Replace(sourceDir, targetDir);
+            File.Copy(file, targetFile, true);
+        }
+    }
+
 
     public class AppConfig
     {
@@ -306,6 +360,7 @@ class Program
 
     class ServerSelectForm : Form
     {
+        private ComboBox officialCombo;
         public ServerType SelectedServer { get; private set; }
 
         public ServerSelectForm()
@@ -316,6 +371,39 @@ class Program
             ClientSize = new Size(320, 220);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
+
+            officialCombo = new ComboBox
+            {
+                Location = new Point(140, 26),
+                Size = new Size(40, 25),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            officialCombo.Items.AddRange(new string[] { "A1", "A2", "A3" });
+            officialCombo.Text = "A1"; //默认
+            Controls.Add(officialCombo);
+
+            var saveBtn = new Button
+            {
+                Text = "保存",
+                Size = new Size(40, 25),
+                Location = new Point(140, 50),
+                Font = new Font("Segoe UI", 7),
+                Cursor = Cursors.Hand
+            };
+            saveBtn.Click += (_, __) =>
+            {
+                string selectedAccount = officialCombo.Text;
+                MessageBox.Show($"已保存账号: {selectedAccount}", "提示");
+
+                // 可在此处保存到配置文件
+                var cfg = Program.LoadConfig();
+                cfg.MAA_Official = selectedAccount; // 或存到其他字段
+                Program.SaveConfig(cfg);
+
+                BackupAccount(selectedAccount);
+            };
+            Controls.Add(saveBtn);
+
 
             Controls.Add(CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(20, 25), ServerType.Official));   // 官服
             Controls.Add(CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(20, 95), ServerType.Bilibili));     // B服
@@ -341,9 +429,52 @@ class Program
                 Cursor = Cursors.Hand
             };
 
-            btn.Click += (_, __) =>
+            btn.Click += async (_, __) =>
             {
                 SelectedServer = type;
+                try
+                {
+                    foreach (var proc in Process.GetProcessesByName("Arknights"))
+                    {
+                        proc.Kill();
+                        proc.WaitForExit(5000); // 等待进程真正结束
+                        
+                    }
+                }
+
+                catch (Exception ex)
+                {
+                    MessageBox.Show("关闭 Arknights 时出错:\n" + ex.Message, "错误");
+                }
+
+                await Task.Delay(5000);
+
+                if (type == ServerType.Official)
+                {
+                    string selectedAccount = officialCombo.Text; // 获取当前选择的账号
+                    string backupFolder = Path.Combine(Program.AccountBackupDir, selectedAccount);
+
+                    string sdkPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                        "AppData", "LocalLow", "Hypergryph", "Arknights"
+                    );
+
+                    // 找到现有 sdk_data_* 文件夹
+                    var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
+                    if (sdkDir == null)
+                    {
+                        MessageBox.Show("未找到 sdk_data_* 文件夹，请先启动 Arknights 一次", "错误");
+                        return;
+                    }
+                    if (Directory.Exists(backupFolder))
+                    {
+                        CopyDirectory(backupFolder, sdkDir);  // 复制 A1 备份到 sdk_data_*
+                    }
+                    else
+                    {
+                        MessageBox.Show("未找到 账号1 文件夹", "错误");
+                    }
+                }
                 using var launchForm = new LaunchForm(type);
                 launchForm.ShowDialog();
                 this.Show();
