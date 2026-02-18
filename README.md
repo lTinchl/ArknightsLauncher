@@ -1,8 +1,9 @@
-# ArknightsLauncher
+# ArknightsLauncher（明日方舟启动器）
 
 ## 简介
 
 >此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
+<img width="316" height="246" alt="image" src="https://github.com/user-attachments/assets/9e9abcf3-edff-40ac-9d00-8037de3b83aa" />
 
 ### 文件结构
 ```
@@ -33,3 +34,6 @@
 - Github用户[[SkyHao723]](https://github.com/SkyHao723): https://github.com/SkyHao723/arknightsSwitcher
 - 图标库: https://igoutu.cn/icons
 - 图标提取工具: ```Quick Any2Ico```
+
+###免责声明
+此工具不会将您的账号文件上传至互联网，仅用于本地替换，如果担心账号安全请酌情使用，使用本工具造成的任何后果由使用者自行承担。
