@@ -254,53 +254,42 @@ class Program
             {
                 var cfg = Program.LoadConfig();
 
-                // ===== MAA 分支 =====
-                if (_serverType == ServerType.MAA_Official ||
-                    _serverType == ServerType.MAA_Bilibili)
+                if (_serverType == ServerType.MAA_Official || _serverType == ServerType.MAA_Bilibili)
                 {
-                    string exePath = _serverType == ServerType.MAA_Official
-                        ? cfg.MAA_Official
-                        : cfg.MAA_Bilibili;
+                    string exePath = _serverType == ServerType.MAA_Official ? cfg.MAA_Official : cfg.MAA_Bilibili;
 
                     if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
                     {
                         exePath = Program.SelectExe("请选择 MAA.exe", "MAA 程序");
                         if (string.IsNullOrEmpty(exePath)) return;
 
-                        if (_serverType == ServerType.MAA_Official)
-                            cfg.MAA_Official = exePath;
-                        else
-                            cfg.MAA_Bilibili = exePath;
+                        if (_serverType == ServerType.MAA_Official) cfg.MAA_Official = exePath;
+                        else cfg.MAA_Bilibili = exePath;
 
                         Program.SaveConfig(cfg);
                     }
 
                     Program.StartMAA(exePath);
-                    await Task.Delay(2000);
-                    return;
+                    await Task.Delay(1000); // 等待动画显示
                 }
-
-                // ===== Arknights 分支 =====
-                string rootPath = cfg.RootPath;
-
-                if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+                else
                 {
-                    rootPath = Program.SelectFolder();
-                    if (string.IsNullOrEmpty(rootPath)) return;
+                    string rootPath = cfg.RootPath;
+                    if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+                    {
+                        rootPath = Program.SelectFolder();
+                        if (string.IsNullOrEmpty(rootPath)) return;
 
-                    cfg.RootPath = rootPath;
-                    Program.SaveConfig(cfg);
+                        cfg.RootPath = rootPath;
+                        Program.SaveConfig(cfg);
+                    }
+
+                    string payloadFolder = _serverType == ServerType.Official ? "Payload" : "Payload_B";
+                    await Task.Run(() => Program.ExtractAndOverwrite(rootPath, payloadFolder));
+
+                    Program.StartArknights(rootPath);
+                    await Task.Delay(2500); // 等待动画显示
                 }
-
-                string payloadFolder = _serverType == ServerType.Official
-                    ? "Payload"
-                    : "Payload_B";
-
-                await Task.Run(() =>
-                    Program.ExtractAndOverwrite(rootPath, payloadFolder));
-
-                Program.StartArknights(rootPath);
-                await Task.Delay(3000);
             }
             catch (Exception ex)
             {
@@ -308,7 +297,7 @@ class Program
             }
             finally
             {
-                Close();
+                Close(); // 启动动画窗口结束后自动关闭
             }
         }
 
@@ -355,11 +344,13 @@ class Program
             btn.Click += (_, __) =>
             {
                 SelectedServer = type;
-                DialogResult = DialogResult.OK;
-                Close();
+                using var launchForm = new LaunchForm(type);
+                launchForm.ShowDialog();
+                this.Show();
             };
             return btn;
         }
+
 
         private Button CreateServerButton_Git(string text, Icon icon, Point pos)
         {
