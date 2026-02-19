@@ -22,6 +22,7 @@
 
 ## 如何使用
 在Releases下载最新版本的应用程序，下载完成后打开软件，选择游戏根目录，点击对应服务器启动
+- 详情请翻阅[WiKi](https://github.com/lTinchl/ArknightsLauncher/wiki/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8)
 
 ## 已支持功能
 - [x] 双服切换
