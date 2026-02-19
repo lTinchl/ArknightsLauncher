@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -17,7 +18,7 @@ enum ServerType
     GitHub
 }
 
-    
+
 
 class Program
 {
@@ -29,7 +30,7 @@ class Program
 
     static readonly string ConfigFile = Path.Combine(ConfigDir, "config.json");
 
-    static readonly string AccountBackupDir =Path.Combine(ConfigDir, "AccountBackups");
+    static readonly string AccountBackupDir = Path.Combine(ConfigDir, "AccountBackups");
 
     [STAThread]
     static void Main()
@@ -44,7 +45,7 @@ class Program
         Application.Run(new LaunchForm(selectForm.SelectedServer));
     }
 
- 
+
 
     public static Icon LoadIcon(string name)
     {
@@ -135,7 +136,7 @@ class Program
 
         foreach (var res in resources)
         {
-            
+
             string relativePath = res.Substring(prefix.Length);
             int lastDot = relativePath.LastIndexOf('.');
             if (lastDot != -1)
@@ -252,16 +253,24 @@ class Program
         public string RootPath { get; set; } = "";     // Arknights
         public string MAA_Official { get; set; } = ""; //MAA 官
         public string MAA_Bilibili { get; set; } = ""; //MAA B
+
+        public Dictionary<string, string> Accounts { get; set; }
+        = new Dictionary<string, string>();
+
+        public string DefaultAccount { get; set; } = "";
     }
 
 
     class LaunchForm : Form
     {
         private readonly ServerType _serverType;
+        private readonly string _rootPath;
+        private Label statusLabel;
 
-        public LaunchForm(ServerType serverType)
+        public LaunchForm(ServerType serverType, string rootPath = "")
         {
             _serverType = serverType;
+            _rootPath = rootPath;
 
             Text = serverType switch
             {
@@ -288,21 +297,19 @@ class Program
             ClientSize = new Size(320, 140);
             TopMost = true;
 
-            Controls.Add(new Label
+            statusLabel = new Label
             {
-                Text = serverType == ServerType.MAA_Official ||
-                   serverType == ServerType.MAA_Bilibili
-                ? "正在启动 MAA…"
-                : "正在启动 Arknights…",
+                Text = serverType == ServerType.MAA_Official || serverType == ServerType.MAA_Bilibili
+                       ? "正在启动 MAA…"
+                       : "正在启动 Arknights…",
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Font = new Font("Segoe UI", 11)
-            });
+            };
 
-            Shown += (_, __) => BeginInvoke(RunCore);
+            Controls.Add(statusLabel);
         }
-
-        async void RunCore()
+        public async Task RunCore()
         {
             try
             {
@@ -324,11 +331,11 @@ class Program
                     }
 
                     Program.StartMAA(exePath);
-                    await Task.Delay(1000); // 等待动画显示
+                    await Task.Delay(1000); // 显示启动动画
                 }
                 else
                 {
-                    string rootPath = cfg.RootPath;
+                    string rootPath = _rootPath;
                     if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
                     {
                         rootPath = Program.SelectFolder();
@@ -351,68 +358,215 @@ class Program
             }
             finally
             {
-                Close(); // 启动动画窗口结束后自动关闭
+                this.Invoke(() => this.Close()); // 完成后自动关闭启动窗口
             }
         }
-
-
     }
 
-    class ServerSelectForm : Form
+
+    class AccountItem
     {
+        public string Id { get; set; }
+        public string Remark { get; set; }
+        public override string ToString() => Remark;
+    }
+
+
+    class ServerSelectForm : Form
+    { 
         private ComboBox officialCombo;
         public ServerType SelectedServer { get; private set; }
+
+        private void ReloadAccounts()
+        {
+            officialCombo.Items.Clear();
+            var cfg = Program.LoadConfig();
+
+            if (cfg.Accounts.Count == 0)
+            {
+                string defaultId = "A1";
+                string defaultRemark = "默认账号";
+                cfg.Accounts[defaultId] = defaultRemark;
+                cfg.DefaultAccount = defaultId;
+
+                // 创建备份文件夹
+                Directory.CreateDirectory(Path.Combine(Program.AccountBackupDir, defaultId));
+
+                Program.SaveConfig(cfg);
+            }
+
+            // 默认账号优先
+            if (!string.IsNullOrEmpty(cfg.DefaultAccount) && cfg.Accounts.ContainsKey(cfg.DefaultAccount))
+            {
+                var defaultItem = new AccountItem
+                {
+                    Id = cfg.DefaultAccount,
+                    Remark = cfg.Accounts[cfg.DefaultAccount] + "⭐"
+                };
+                officialCombo.Items.Add(defaultItem);
+            }
+
+            // 添加剩余账号
+            foreach (var acc in cfg.Accounts)
+            {
+                if (acc.Key == cfg.DefaultAccount) continue;
+                officialCombo.Items.Add(new AccountItem
+                {
+                    Id = acc.Key,
+                    Remark = acc.Value
+                });
+            }
+
+            // 默认选中第一个
+            if (officialCombo.Items.Count > 0)
+                officialCombo.SelectedIndex = 0;
+        }
 
         public ServerSelectForm()
         {
             Text = "Arknights Launcher";
             Icon = Program.LoadIcon("ArknightsLauncher.ico");
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(320, 220);
+            ClientSize = new Size(340, 210);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
 
             officialCombo = new ComboBox
             {
-                Location = new Point(140, 26),
-                Size = new Size(40, 25),
+                Location = new Point(125, 36),
+                Size = new Size(80, 25),
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            officialCombo.Items.AddRange(new string[] { "A1", "A2", "A3" });
-            officialCombo.Text = "A1"; //默认
+
+            var cfg = Program.LoadConfig();
+
+            ReloadAccounts();
+
+            // 设置默认账号
+            if (!string.IsNullOrEmpty(cfg.DefaultAccount))
+                officialCombo.Text = cfg.DefaultAccount;
             Controls.Add(officialCombo);
 
-            var saveBtn = new Button
+            var manageBtn = new Button
             {
-                Text = "保存",
-                Size = new Size(40, 25),
-                Location = new Point(140, 50),
-                Font = new Font("Segoe UI", 7),
+                Text = "账号管理",
+                Size = new Size(120, 30),
+                Location = new Point(0, 5),
                 Cursor = Cursors.Hand
             };
-            saveBtn.Click += (_, __) =>
+
+            manageBtn.Click += (_, __) =>
             {
-                string selectedAccount = officialCombo.Text;
-                MessageBox.Show($"已保存账号: {selectedAccount}", "提示");
+                using var f = new AccountManagerForm();
+                f.ShowDialog();
 
-                // 可在此处保存到配置文件
-                var cfg = Program.LoadConfig();
-                cfg.MAA_Official = selectedAccount; // 或存到其他字段
-                Program.SaveConfig(cfg);
-
-                BackupAccount(selectedAccount);
+                ReloadAccounts();
             };
-            Controls.Add(saveBtn);
+
+            Controls.Add(manageBtn);
 
 
-            Controls.Add(CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(20, 25), ServerType.Official));   // 官服
-            Controls.Add(CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(20, 95), ServerType.Bilibili));     // B服
-            Controls.Add(CreateServerButton("MAA-官", Program.LoadIcon("MAA.ico"), new Point(180, 25), ServerType.MAA_Official)); // MAA-官
-            Controls.Add(CreateServerButton("MAA-B", Program.LoadIcon("MAA.ico"), new Point(180, 95), ServerType.MAA_Bilibili)); //  MAA-B
-            Controls.Add(CreateServerButton_Git("By:Tinch", Program.LoadIcon("GitHub.ico"), new Point(100, 165) )); // Github
+            Controls.Add(CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(0, 35), ServerType.Official));   // 官服
+            Controls.Add(CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(0, 95), ServerType.Bilibili));     // B服
+            Controls.Add(CreateServerButton_MAA("MAA-官", Program.LoadIcon("MAA.ico"), new Point(220, 35), ServerType.MAA_Official)); // MAA-官
+            Controls.Add(CreateServerButton_MAA("MAA-B", Program.LoadIcon("MAA.ico"), new Point(220, 95), ServerType.MAA_Bilibili)); //  MAA-B
+            Controls.Add(CreateServerButton_Git("By:Tinch", Program.LoadIcon("GitHub.ico"), new Point(110, 160))); // Github
         }
 
-        private Button CreateServerButton(string text, Icon icon, Point pos, ServerType type)
+    private Button CreateServerButton(string text, Icon icon, Point pos, ServerType type)
+    {
+        var btn = new Button
+        {
+            Text = text,
+            Image = icon.ToBitmap(),
+            ImageAlign = ContentAlignment.MiddleLeft,
+            TextAlign = ContentAlignment.MiddleCenter,
+            TextImageRelation = TextImageRelation.ImageBeforeText,
+            Font = new Font("Segoe UI", 11, FontStyle.Regular),
+            Size = new Size(120, 60),
+            Location = pos,
+            FlatStyle = FlatStyle.Standard,
+            Padding = new Padding(10, 0, 0, 0),
+            Cursor = Cursors.Hand
+        };
+
+        btn.Click += async (_, __) =>
+        {
+            SelectedServer = type;
+
+            try
+            {
+                foreach (var proc in Process.GetProcessesByName("Arknights"))
+                {
+                    proc.Kill();
+                    proc.WaitForExit(); // 等待进程真正结束，避免替换文件报错
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("关闭 Arknights 时出错:\n" + ex.Message, "错误");
+            }
+
+            var cfg = Program.LoadConfig();
+            string rootPath = cfg.RootPath;
+
+            // 如果没有配置或者目录不存在，就弹出选择文件夹
+            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+            {
+                rootPath = Program.SelectFolder();
+                if (string.IsNullOrEmpty(rootPath)) return; // 用户取消
+
+                cfg.RootPath = rootPath;
+                Program.SaveConfig(cfg);
+            }
+
+
+            // 立即显示启动窗口
+            var launchForm = new LaunchForm(type, rootPath);
+            launchForm.Show();
+
+            if (type == ServerType.Official)
+            {
+                var selectedItem = officialCombo.SelectedItem as AccountItem;
+                if (selectedItem == null) return;
+
+                string selectedAccount = selectedItem.Id;
+                string backupFolder = Path.Combine(Program.AccountBackupDir, selectedAccount);
+
+                string sdkPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "AppData", "LocalLow", "Hypergryph", "Arknights"
+                );
+
+
+                // 找到现有 sdk_data_* 文件夹
+                var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
+                if (sdkDir == null)
+                    {
+                        MessageBox.Show("未找到 sdk_data_* 文件夹，请先启动 Arknights 一次", "错误");
+                        return;
+                    }
+
+                    if (Directory.Exists(backupFolder))
+                    {
+                        await Task.Delay(3000);              // 等待进程完全清除
+                    CopyDirectory(backupFolder, sdkDir); // 复制 A1 备份到 sdk_data_*
+                    }
+            }
+
+            // 异步执行启动逻辑
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(4000);         // 等待进程完全清除
+                await launchForm.RunCore(); // 在 LaunchForm 里做文件替换 + 启动
+                this.Invoke(() => this.Show());  // 回到主窗口
+            });
+        };
+
+        return btn;
+    }
+
+        private Button CreateServerButton_MAA(string text, Icon icon, Point pos, ServerType type)
         {
             var btn = new Button
             {
@@ -432,51 +586,37 @@ class Program
             btn.Click += async (_, __) =>
             {
                 SelectedServer = type;
-                try
+                var cfg = Program.LoadConfig();
+
+                // UI 线程选择 MAA.exe
+                string exePath = type == ServerType.MAA_Official ? cfg.MAA_Official : cfg.MAA_Bilibili;
+                if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
                 {
-                    foreach (var proc in Process.GetProcessesByName("Arknights"))
-                    {
-                        proc.Kill();
-                        proc.WaitForExit(); // 等待进程真正结束
-                        
-                    }
+                    string title = type == ServerType.MAA_Official ? "请选择 MAA.exe (MAA-官)" : "请选择 MAA.exe (MAA-B)";
+                    exePath = Program.SelectExe(title, "MAA 程序");
+                    if (string.IsNullOrEmpty(exePath)) return;
+
+                    if (type == ServerType.MAA_Official) cfg.MAA_Official = exePath;
+                    else cfg.MAA_Bilibili = exePath;
+
+                    Program.SaveConfig(cfg);
                 }
 
-                catch (Exception ex)
+                // 显示启动动画窗口
+                var launchForm = new LaunchForm(type);
+                launchForm.Show();
+
+                // 异步执行启动逻辑
+                _ = Task.Run(async () =>
                 {
-                    MessageBox.Show("关闭 Arknights 时出错:\n" + ex.Message, "错误");
-                }
-
-                await Task.Delay(5000);
-
-                if (type == ServerType.Official)
-                {
-                    string selectedAccount = officialCombo.Text; // 获取当前选择的账号
-                    string backupFolder = Path.Combine(Program.AccountBackupDir, selectedAccount);
-
-                    string sdkPath = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                        "AppData", "LocalLow", "Hypergryph", "Arknights"
-                    );
-
-                    // 找到现有 sdk_data_* 文件夹
-                    var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
-                    if (sdkDir == null)
-                    {
-                        MessageBox.Show("未找到 sdk_data_* 文件夹，请先启动 Arknights 一次", "错误");
-                        return;
-                    }
-                    if (Directory.Exists(backupFolder))
-                    {
-                        CopyDirectory(backupFolder, sdkDir);  // 复制 A1 备份到 sdk_data_*
-                    }
-                }
-                using var launchForm = new LaunchForm(type);
-                launchForm.ShowDialog();
-                this.Show();
+                    await launchForm.RunCore();
+                    this.Invoke(() => this.Show());
+                });
             };
+
             return btn;
         }
+
 
 
         private Button CreateServerButton_Git(string text, Icon icon, Point pos)
@@ -502,6 +642,146 @@ class Program
             };
 
             return btn;
+        }
+    }
+    class AccountManagerForm : Form
+    {
+        private ListBox listBox;
+        private Button btnAdd, btnDelete, btnBackup, btnSetDefault;
+
+        public AccountManagerForm()
+        {
+            Text = "账号管理";
+            Size = new Size(350, 400);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+
+            listBox = new ListBox { Dock = DockStyle.Top, Height = 250 };
+            listBox.DoubleClick += RenameAccount;
+
+            btnAdd = new Button { Text = "新增", Width = 70 };
+            btnDelete = new Button { Text = "删除", Width = 70 };
+            btnBackup = new Button { Text = "备份当前", Width = 90 };
+            btnSetDefault = new Button { Text = "设为默认", Width = 90 };
+
+            var panel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 60 };
+            panel.Controls.AddRange(new Control[] { btnAdd, btnDelete, btnBackup, btnSetDefault });
+
+            Controls.Add(listBox);
+            Controls.Add(panel);
+
+            btnAdd.Click += AddAccount;
+            btnDelete.Click += DeleteAccount;
+            btnBackup.Click += BackupCurrent;
+            btnSetDefault.Click += SetDefault;
+
+            LoadAccounts();
+        }
+
+        private void LoadAccounts()
+        {
+            listBox.Items.Clear();
+            var cfg = Program.LoadConfig();
+
+            if (!string.IsNullOrEmpty(cfg.DefaultAccount) && cfg.Accounts.ContainsKey(cfg.DefaultAccount))
+            {
+                var defaultItem = new AccountItem
+                {
+                    Id = cfg.DefaultAccount,
+                    Remark = cfg.Accounts[cfg.DefaultAccount] + " ⭐"
+                };
+                listBox.Items.Add(defaultItem);
+            }
+
+            foreach (var acc in cfg.Accounts)
+            {
+                if (acc.Key == cfg.DefaultAccount) continue; // 已添加默认账号
+                listBox.Items.Add(new AccountItem
+                {
+                    Id = acc.Key,
+                    Remark = acc.Value
+                });
+            }
+        }
+
+        private void AddAccount(object sender, EventArgs e)
+        {
+            string remark = Microsoft.VisualBasic.Interaction.InputBox("请输入账号备注", "新增账号");
+            if (string.IsNullOrWhiteSpace(remark)) return;
+
+            var cfg = Program.LoadConfig();
+            int index = 1;
+            while (cfg.Accounts.ContainsKey("A" + index)) index++;
+            string id = "A" + index;
+
+            cfg.Accounts[id] = remark;
+            Program.SaveConfig(cfg);
+
+            Directory.CreateDirectory(Path.Combine(Program.AccountBackupDir, id));
+            LoadAccounts();
+        }
+
+        private void RenameAccount(object sender, EventArgs e)
+        {
+            var selectedItem = listBox.SelectedItem as AccountItem;
+            if (selectedItem == null) return;
+
+            string newRemark = Microsoft.VisualBasic.Interaction.InputBox($"修改 {selectedItem.Remark.Replace(" ⭐", "")}",
+                                                                          "重命名",
+                                                                          selectedItem.Remark.Replace(" ⭐", ""));
+            if (string.IsNullOrWhiteSpace(newRemark)) return;
+
+            var cfg = Program.LoadConfig();
+            cfg.Accounts[selectedItem.Id] = newRemark;
+            Program.SaveConfig(cfg);
+            LoadAccounts();
+        }
+
+        private void DeleteAccount(object sender, EventArgs e)
+        {
+            var selectedItem = listBox.SelectedItem as AccountItem;
+            if (selectedItem == null) return;
+            var cfg = Program.LoadConfig();
+
+            if (cfg.Accounts.Count <= 1)
+            {
+                MessageBox.Show("至少需要保留一个账号", "提示");
+                return;
+            }
+
+            if (MessageBox.Show($"确认删除 {selectedItem.Remark.Replace(" ⭐", "")}？", "确认", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                return;
+
+            cfg.Accounts.Remove(selectedItem.Id);
+            if (cfg.DefaultAccount == selectedItem.Id) cfg.DefaultAccount = "";
+            Program.SaveConfig(cfg);
+
+            string backupDir = Path.Combine(Program.AccountBackupDir, selectedItem.Id);
+            if (Directory.Exists(backupDir)) Directory.Delete(backupDir, true);
+
+            LoadAccounts();
+        }
+
+        private void SetDefault(object sender, EventArgs e)
+        {
+            var selectedItem = listBox.SelectedItem as AccountItem;
+            if (selectedItem == null) return;
+
+            var cfg = Program.LoadConfig();
+            cfg.DefaultAccount = selectedItem.Id;
+            Program.SaveConfig(cfg);
+
+            LoadAccounts();
+        }
+
+        private void BackupCurrent(object sender, EventArgs e)
+        {
+            var selectedItem = listBox.SelectedItem as AccountItem;
+            if (selectedItem == null) return;
+
+            Program.BackupAccount(selectedItem.Id);
+            MessageBox.Show("备份完成", "成功");
         }
     }
 }
