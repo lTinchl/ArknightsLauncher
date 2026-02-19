@@ -3,7 +3,8 @@
 ## 简介
 
 >此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
-<img width="316" height="246" alt="image" src="https://github.com/user-attachments/assets/9e9abcf3-edff-40ac-9d00-8037de3b83aa" />
+<img width="335" height="236" alt="image" src="https://github.com/user-attachments/assets/38f2ea12-5de9-4ee7-92a7-56527f582afc" />
+
 
 ### 文件结构
 ```
@@ -24,8 +25,8 @@
 
 ## 已支持功能
 - [x] 双服切换
-- [x] MAA
 - [x] 官服账号切换
+- [x] MAA
       
 ## 特别鸣谢
 
