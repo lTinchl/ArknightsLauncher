@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
@@ -141,33 +142,39 @@ class Program
     }
 
 
-    public static void ExtractAndOverwrite(string targetRoot, string payloadFolder)
+    public static void ExtractAndOverwrite(string targetRoot, string zipResourceName)
     {
         var asm = Assembly.GetExecutingAssembly();
-        string ns = asm.GetName().Name; // 程序集命名空间
-        string prefix = ns + "." + payloadFolder + ".";
 
-        var resources = asm.GetManifestResourceNames().Where(r => r.StartsWith(prefix)).ToList();
-        if (!resources.Any()) throw new Exception($"没有找到资源: {prefix}");
+        // 临时保存路径
+        string tempZipPath = Path.Combine(Path.GetTempPath(), $"temp_{zipResourceName}");
 
-        foreach (var res in resources)
+        try
         {
-
-            string relativePath = res.Substring(prefix.Length);
-            int lastDot = relativePath.LastIndexOf('.');
-            if (lastDot != -1)
+            // 从嵌入资源中提取压缩包到临时文件
+            using (Stream resourceStream = asm.GetManifestResourceStream($"ArknightsLauncher.{zipResourceName}"))
             {
-                string pathWithoutExt = relativePath.Substring(0, lastDot).Replace('.', Path.DirectorySeparatorChar);
-                string ext = relativePath.Substring(lastDot);
-                relativePath = pathWithoutExt + ext;
+                if (resourceStream == null)
+                {
+                    throw new Exception($"未找到嵌入的资源: {zipResourceName}");
+                }
+
+                using (FileStream fileStream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write))
+                {
+                    resourceStream.CopyTo(fileStream);
+                }
             }
 
-            string outPath = Path.Combine(targetRoot, relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
-
-            using var input = asm.GetManifestResourceStream(res)!;
-            using var output = new FileStream(outPath, FileMode.Create);
-            input.CopyTo(output);
+            // 解压到目标目录（覆盖模式）
+            ZipFile.ExtractToDirectory(tempZipPath, targetRoot, true);
+        }
+        finally
+        {
+            // 清理临时文件
+            if (File.Exists(tempZipPath))
+            {
+                File.Delete(tempZipPath);
+            }
         }
     }
 
@@ -274,8 +281,107 @@ class Program
         = new Dictionary<string, string>();
 
         public string DefaultAccount { get; set; } = "";
+        public bool IsFirstRun { get; set; } = true;
     }
 
+    class ImageMessageBox : Form
+    {
+        public ImageMessageBox(string message, Image image, string title = "提示")
+        {
+            Text = title;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            StartPosition = FormStartPosition.CenterParent;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            BackColor = Color.White;
+
+            int padding = 20;
+            int btnHeight = 40;
+
+            // 压缩图片到固定尺寸
+            int targetWidth = 500;   // 压缩宽度
+            int targetHeight = 300;  // 压缩高度
+            Image resizedImage = ResizeImage(image, targetWidth, targetHeight);
+
+            // 设置窗体尺寸
+            ClientSize = new Size(Math.Max(resizedImage.Width + padding * 2, 300),
+                                  resizedImage.Height + 70 + btnHeight);
+
+            // 图片控件
+            var picBox = new PictureBox
+            {
+                Image = resizedImage,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Size = new Size(resizedImage.Width, resizedImage.Height),
+                Location = new Point((ClientSize.Width - resizedImage.Width) / 2, padding)
+            };
+            Controls.Add(picBox);
+
+            // 文本控件
+            var lbl = new Label
+            {
+                Text = message,
+                AutoSize = false,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 10),
+                Size = new Size(ClientSize.Width - padding * 2, 50),
+                Location = new Point(padding, picBox.Bottom + 10)
+            };
+            Controls.Add(lbl);
+
+            // 确定按钮
+            var btn = new Button
+            {
+                Text = "确定",
+                Size = new Size(80, 30),
+                Location = new Point((ClientSize.Width - 80) / 2, lbl.Bottom + 1),
+                DialogResult = DialogResult.OK
+            };
+            Controls.Add(btn);
+
+            AcceptButton = btn;
+        }
+
+        // 缩放图片方法
+        private static Image ResizeImage(Image img, int width, int height)
+        {
+            var destRect = new Rectangle(0, 0, width, height);
+            var destImage = new Bitmap(width, height);
+
+            destImage.SetResolution(img.HorizontalResolution, img.VerticalResolution);
+
+            using (var graphics = Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+                graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+                using var wrapMode = new System.Drawing.Imaging.ImageAttributes();
+                wrapMode.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
+                graphics.DrawImage(img, destRect, 0, 0, img.Width, img.Height, GraphicsUnit.Pixel, wrapMode);
+            }
+
+            return destImage;
+        }
+
+        // 调用示例
+        public static void Show(string message, string resourceName, string title = "提示")
+        {
+            var asm = Assembly.GetExecutingAssembly();
+            using var stream = asm.GetManifestResourceStream($"ArknightsLauncher.Icons.{resourceName}");
+            if (stream == null)
+            {
+                MessageBox.Show("未找到资源: " + resourceName);
+                return;
+            }
+
+            Image img = Image.FromStream(stream);
+            using var box = new ImageMessageBox(message, img, title);
+            box.ShowDialog();
+        }
+    }
 
     class LaunchForm : Form
     {
@@ -360,9 +466,8 @@ class Program
                         cfg.RootPath = rootPath;
                         Program.SaveConfig(cfg);
                     }
-
-                    string payloadFolder = _serverType == ServerType.Official ? "Payload" : "Payload_B";
-                    await Task.Run(() => Program.ExtractAndOverwrite(rootPath, payloadFolder));
+                    string zipResourceName = _serverType == ServerType.Official ? "Payload.zip" : "Payload_B.zip";
+                    await Task.Run(() => Program.ExtractAndOverwrite(rootPath, zipResourceName));
 
                     Program.StartArknights(rootPath);
                     await Task.Delay(2500); // 等待动画显示
@@ -481,9 +586,93 @@ class Program
 
             Controls.Add(manageBtn);
 
+            var fixBtn = new Button
+            {
+                Text = "修复记忆模糊",
+                Size = new Size(120, 30),
+                Location = new Point(220, 5),
+                Cursor = Cursors.Hand
+            };
 
-            Controls.Add(CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(0, 35), ServerType.Official));   // 官服
-            Controls.Add(CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(0, 95), ServerType.Bilibili));     // B服
+            fixBtn.Click += (_, __) =>
+            {
+                try
+                {
+                    var cfg = Program.LoadConfig();
+                    string gamePath = cfg.RootPath;
+
+                    if (string.IsNullOrEmpty(gamePath) || !Directory.Exists(gamePath))
+                    {
+                        MessageBox.Show("未找到已配置的 Arknights Game 目录! ");
+                        return;
+                    }
+
+                    // 关闭正在运行的 Arknights 进程
+                    foreach (var p in Process.GetProcessesByName("Arknights"))
+                    {
+                        p.Kill();
+                        p.WaitForExit();
+                    }
+
+                    // 从嵌入资源中提取压缩包
+                    Assembly assembly = Assembly.GetExecutingAssembly();
+                    string resourceName = "ArknightsLauncher.ArknightsGame.zip"; // 格式: 命名空间.文件名
+
+                    // 临时保存路径
+                    string tempZipPath = Path.Combine(Path.GetTempPath(), "ArknightsGame.zip");
+
+                    using (Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
+                    {
+                        if (resourceStream == null)
+                        {
+                            MessageBox.Show("未找到嵌入的 Arknights Game.zip 资源!");
+                            return;
+                        }
+
+                        using (FileStream fileStream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write))
+                        {
+                            resourceStream.CopyTo(fileStream);
+                        }
+                    }
+
+                    // 解压到目标目录
+                    ZipFile.ExtractToDirectory(tempZipPath, gamePath, true);
+
+                    // 删除临时文件
+                    File.Delete(tempZipPath);
+
+                    MessageBox.Show("修复完成！","提示");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"修复失败: {ex.Message}","错误");
+                }
+            };
+
+            Controls.Add(fixBtn);
+
+            // 创建 B服按钮
+            var bServerBtn = CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(0, 95), ServerType.Bilibili);
+            bServerBtn.Enabled = !cfg.IsFirstRun; // 如果是首次运行，B服按钮禁用
+            Controls.Add(bServerBtn);
+
+            // 官服按钮
+            var officialBtn = CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(0, 35), ServerType.Official);
+            Controls.Add(officialBtn);
+
+            // 官服按钮点击逻辑 → 首次运行点击官服按钮解锁 B服按钮
+            officialBtn.Click += async (_, __) =>
+            {
+                SelectedServer = ServerType.Official;
+
+                if (cfg.IsFirstRun)
+                {
+                    bServerBtn.Enabled = true;    // 解锁 B服按钮
+                    cfg.IsFirstRun = false;       // 标记首次点击完成
+                    Program.SaveConfig(cfg);      // 保存配置
+                }
+            };
+
             Controls.Add(CreateServerButton_MAA("MAA-官", Program.LoadIcon("MAA.ico"), new Point(220, 35), ServerType.MAA_Official)); // MAA-官
             Controls.Add(CreateServerButton_MAA("MAA-B", Program.LoadIcon("MAA.ico"), new Point(220, 95), ServerType.MAA_Bilibili)); //  MAA-B
             Controls.Add(CreateServerButton_Git("By:Tinch", Program.LoadIcon("GitHub.ico"), new Point(110, 160))); // Github
@@ -558,16 +747,22 @@ class Program
                 // 找到现有 sdk_data_* 文件夹
                 var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
                 if (sdkDir == null)
+                {
+                    // sdk_data_* 不存在 → 直接运行一次 Arknights，不做备份恢复
+                    _ = Task.Run(() =>
                     {
-                        MessageBox.Show("未找到 sdk_data_* 文件夹，请先通过鹰角启动器启动一次 Arknights (官服)", "错误");
-                        return;
-                    }
-
+                        ImageMessageBox.Show("未找到,sdk_data_*文件夹，请进入到账号输入界面(如所示)再手动关闭进程", "Main.png", "提示");
+                    });
+                }
+                else
+                {
+                    // sdk_data_* 存在 → 如果有备份，复制 A1
                     if (Directory.Exists(backupFolder))
                     {
                         await Task.Delay(3000);              // 等待进程完全清除
-                    CopyDirectory(backupFolder, sdkDir); // 复制 A1 备份到 sdk_data_*
+                        CopyDirectory(backupFolder, sdkDir); // 复制 A1 备份到 sdk_data_*
                     }
+                }
             }
 
             // 异步执行启动逻辑
