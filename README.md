@@ -2,8 +2,9 @@
 
 ## 简介
 
->此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
-<img width="335" height="236" alt="image" src="https://github.com/user-attachments/assets/38f2ea12-5de9-4ee7-92a7-56527f582afc" />
+>此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。<img width="342" height="242" alt="9de0cc37-4911-4d49-ba40-79899edf83da" src="https://github.com/user-attachments/assets/6838e841-8f5d-4616-a097-916587088d30" />
+
+
 
 
 ### 文件结构
