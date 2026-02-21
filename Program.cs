@@ -18,8 +18,6 @@ enum ServerType
     GitHub
 }
 
-
-
 class Program
 {
     const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
