@@ -10,10 +10,9 @@
 ### 文件结构
 ```
 ├── Icons
-├── Payload              #官服替换用文件
-    └── [官服相关文件]
-├── Payload_B            #B服替换用文件
-    └── [B服相关文件]
+├── Payload.zip              #官服替换用文件
+├── Payload_B.zip            #B服替换用文件
+├── ArknightsGame.zip        #客户端修复文件
 └── Program.cs
 ```
 
