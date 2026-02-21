@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -56,13 +57,31 @@ class Program
 
     public static string SelectFolder()
     {
-        using var dialog = new FolderBrowserDialog
+        while (true)
         {
-            Description = "请选择目标根目录",
-            UseDescriptionForTitle = true,
-            ShowNewFolderButton = false
-        };
-        return dialog.ShowDialog() == DialogResult.OK ? dialog.SelectedPath : "";
+            using var dialog = new FolderBrowserDialog
+            {
+                Description = "请选择 Arknights 根目录",
+                UseDescriptionForTitle = true,
+                ShowNewFolderButton = false
+            };
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+                return ""; // 用户取消
+
+            string selectedPath = dialog.SelectedPath;
+            string folderName = Path.GetFileName(selectedPath.TrimEnd(Path.DirectorySeparatorChar));
+
+            if (folderName.Equals("Arknights Game", StringComparison.OrdinalIgnoreCase))
+            {
+                return selectedPath; // 选择正确，返回路径
+            }
+            else
+            {
+                MessageBox.Show("请选择名为 'Arknights Game' 的文件夹作为根目录", "错误");
+                // 循环再次弹出选择框
+            }
+        }
     }
 
     public static string SelectExe(string title, string filterName)
@@ -543,7 +562,7 @@ class Program
                 var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
                 if (sdkDir == null)
                     {
-                        MessageBox.Show("未找到 sdk_data_* 文件夹，请先启动 Arknights 一次", "错误");
+                        MessageBox.Show("未找到 sdk_data_* 文件夹，请先通过鹰角启动器启动一次 Arknights (官服)", "错误");
                         return;
                     }
 
@@ -647,26 +666,39 @@ class Program
     class AccountManagerForm : Form
     {
         private ListBox listBox;
-        private Button btnAdd, btnDelete, btnBackup, btnSetDefault;
+        private Button btnAdd, btnDelete, btnBackup, btnSetDefault, btnRename;
+        private Label hintLabel;
 
         public AccountManagerForm()
         {
             Text = "账号管理";
-            Size = new Size(350, 400);
+            Size = new Size(350, 360);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
 
+            hintLabel = new Label
+            {
+                Text = "双击列表项可重命名",
+                Dock = DockStyle.Top,
+                Height = 20,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 9, FontStyle.Italic)
+            };
+            Controls.Add(hintLabel);
+
             listBox = new ListBox { Dock = DockStyle.Top, Height = 250 };
             listBox.DoubleClick += RenameAccount;
+            Controls.Add(listBox);
 
             btnAdd = new Button { Text = "新增", Width = 70 };
             btnDelete = new Button { Text = "删除", Width = 70 };
             btnBackup = new Button { Text = "备份当前", Width = 90 };
             btnSetDefault = new Button { Text = "设为默认", Width = 90 };
+            btnRename = new Button { Text = "重命名", Width = 90 };
 
             var panel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 60 };
-            panel.Controls.AddRange(new Control[] { btnAdd, btnDelete, btnBackup, btnSetDefault });
+            panel.Controls.AddRange(new Control[] { btnAdd, btnDelete, btnBackup, btnSetDefault, btnRename });
 
             Controls.Add(listBox);
             Controls.Add(panel);
@@ -675,6 +707,7 @@ class Program
             btnDelete.Click += DeleteAccount;
             btnBackup.Click += BackupCurrent;
             btnSetDefault.Click += SetDefault;
+            btnRename.Click += RenameAccount;
 
             LoadAccounts();
         }
