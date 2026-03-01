@@ -24,6 +24,7 @@
 		<None Remove="Icons\Info.ico" />
 		<None Remove="Icons\Main.png" />
 		<None Remove="Icons\PRTS_WIKI.ico" />
+		<None Remove="Icons\Start.png" />
 		<None Remove="Payload.zip" />
 		<None Remove="Payload_B.zip" />
 		<EmbeddedResource Include="ArknightsGame.zip" />
@@ -38,6 +39,7 @@
 		<EmbeddedResource Include="Icons\ArknightsLauncher.ico" />
 		<EmbeddedResource Include="Icons\MAA.ico" />
 		<EmbeddedResource Include="Icons\PRTS_WIKI.ico" />
+		<EmbeddedResource Include="Icons\Start.png" />
 		<EmbeddedResource Include="Payload.zip" />
 		<EmbeddedResource Include="Payload_B.zip" />
 	</ItemGroup>
