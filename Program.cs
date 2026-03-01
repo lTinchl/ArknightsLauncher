@@ -17,10 +17,7 @@ enum ServerType
     Bilibili,  // B服
     MAA_Official,  // MAA 官
     MAA_Bilibili,  // MAA B
-    GitHub,
-    Arknights_Yituliu,
-    Arknights_Toolbox,
-    PRTS_WIKI
+    GitHub         //Github 
 }
 
 
@@ -48,11 +45,8 @@ class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         Directory.CreateDirectory(AccountBackupDir);
-
         using var selectForm = new ServerSelectForm();
-        if (selectForm.ShowDialog() != DialogResult.OK) return;
-
-        Application.Run(new LaunchForm(selectForm.SelectedServer));
+        selectForm.ShowDialog();
     }
 
     public static async Task<(bool hasUpdate, string latestVersion, string downloadUrl)> CheckForUpdateAsync()
@@ -78,7 +72,7 @@ class Program
 
     public static async Task DownloadAndInstallAsync(string downloadUrl, Button btn, string originalText)
     {
-        using var client = new HttpClient(); 
+        using var client = new HttpClient();
         client.Timeout = TimeSpan.FromSeconds(300); // 下载可能耗时较长
         string tempPath = Path.Combine(Path.GetTempPath(), "update_setup.exe");
 
@@ -159,28 +153,6 @@ class Program
         return dialog.ShowDialog() == DialogResult.OK
             ? dialog.FileName
             : "";
-    }
-
-
-    public static string LoadRootPath()
-    {
-        if (!File.Exists(ConfigFile)) return "";
-        try
-        {
-            var json = File.ReadAllText(ConfigFile);
-            return JsonSerializer.Deserialize<AppConfig>(json)?.RootPath ?? "";
-        }
-        catch { return ""; }
-    }
-
-
-
-    public static void SaveRootPath(string path)
-    {
-        Directory.CreateDirectory(ConfigDir);
-        var json = JsonSerializer.Serialize(new AppConfig { RootPath = path },
-                                            new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(ConfigFile, json);
     }
 
     public static AppConfig LoadConfig()
@@ -347,23 +319,6 @@ class Program
 
         if (Directory.Exists(target)) Directory.Delete(target, true);
         CopyDirectory(sdkDir, target);
-    }
-
-
-    public static void RestoreAccount(string accountName)
-    {
-        string sdkPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            @"Low\Hypergryph\Arknights"
-        );
-        string backupDir = Path.Combine(AccountBackupDir, accountName);
-
-        var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
-        if (sdkDir != null) Directory.Delete(sdkDir, true);
-
-        if (!Directory.Exists(backupDir)) return;
-
-        CopyDirectory(backupDir, sdkPath);
     }
 
     private static void CopyDirectory(string sourceDir, string targetDir)
@@ -554,34 +509,41 @@ class Program
 
                     if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
                     {
-                        exePath = Program.SelectExe("请选择 MAA.exe", "MAA 程序");
+
+                        exePath = (string)this.Invoke((Func<string>)(() =>
+                            Program.SelectExe("请选择 MAA.exe", "MAA 程序")));
+
                         if (string.IsNullOrEmpty(exePath)) return;
 
                         if (_serverType == ServerType.MAA_Official) cfg.MAA_Official = exePath;
                         else cfg.MAA_Bilibili = exePath;
-
                         Program.SaveConfig(cfg);
                     }
 
                     Program.StartMAA(exePath);
-                    await Task.Delay(1000); // 显示启动动画
+                    await Task.Delay(1000);
                 }
                 else
                 {
                     string rootPath = _rootPath;
+
                     if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
                     {
-                        rootPath = Program.SelectFolder();
+
+                        rootPath = (string)this.Invoke((Func<string>)(() =>
+                            Program.SelectFolder()));
+
                         if (string.IsNullOrEmpty(rootPath)) return;
 
                         cfg.RootPath = rootPath;
                         Program.SaveConfig(cfg);
                     }
+
                     string zipResourceName = _serverType == ServerType.Official ? "Payload.zip" : "Payload_B.zip";
                     await Task.Run(() => Program.ExtractAndOverwrite(rootPath, zipResourceName));
 
                     Program.StartArknights(rootPath);
-                    await Task.Delay(2500); // 等待动画显示
+                    await Task.Delay(2500);
                 }
             }
             catch (Exception ex)
@@ -590,7 +552,7 @@ class Program
             }
             finally
             {
-                this.Invoke(() => this.Close()); // 完成后自动关闭启动窗口
+                this.Invoke(() => this.Close());
             }
         }
     }
@@ -604,7 +566,7 @@ class Program
 
 
     class ServerSelectForm : Form
-    { 
+    {
         private ComboBox officialCombo;
         public ServerType SelectedServer { get; private set; }
 
@@ -751,11 +713,11 @@ class Program
                     // 删除临时文件
                     File.Delete(tempZipPath);
 
-                    MessageBox.Show("修复完成！","提示");
+                    MessageBox.Show("修复完成！", "提示");
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"修复失败: {ex.Message}","错误");
+                    MessageBox.Show($"修复失败: {ex.Message}", "错误");
                 }
             };
 
@@ -777,7 +739,31 @@ class Program
             Controls.Add(CreateServerButton_PrtsWiki("PRTS Wiki", Program.LoadIcon("PRTS_WIKI.ico"), new Point(5, 155))); // PRTS Wiki
             Controls.Add(CreateServerButton_ArknightsToolbox("方舟工具箱", Program.LoadIcon("Arknights_Toolbox.ico"), new Point(85, 155))); // 明日方舟工具箱
             Controls.Add(CreateServerButton_ArknightsYituliu("方舟一图流", Program.LoadIcon("Arknights_Yituliu.ico"), new Point(200, 155))); // 明日方舟一图流
-            Controls.Add(CreateServerButton_About("关于", Program.LoadIcon("Info.ico"),new Point(310, 155))); // Github
+            Controls.Add(CreateServerButton_About("关于", Program.LoadIcon("Info.ico"), new Point(310, 155))); // Github
+
+            //检查更新
+            this.Shown += async (_, __) =>
+            {
+                try
+                {
+                    var (hasUpdate, latestVersion, _) = await Program.CheckForUpdateAsync();
+                    if (hasUpdate)
+                    {
+                        MessageBox.Show(
+                            $"发现新版本 v{latestVersion}，请在关于页面点击[检查更新]下载。",
+                            "有新版本",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information
+                        );
+                        using var aboutForm = new AboutForm();
+                        aboutForm.ShowDialog();
+                    }
+                }
+                catch
+                {
+                    // 静默失败
+                }
+            };
         }
 
         //对图片进行缩放以适应 MessageBox 的显示需求
@@ -812,8 +798,6 @@ class Program
             btn.Click += async (_, __) =>
             {
                 SelectedServer = type;
-
-                // ✅ 处理首次运行解锁B服的逻辑
                 if (type == ServerType.Official && getBServerBtn != null)
                 {
                     var cfg = Program.LoadConfig();
@@ -871,21 +855,30 @@ class Program
                         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                         "AppData", "LocalLow", "Hypergryph", "Arknights"
                     );
-
-                    var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
-                    if (sdkDir == null)
+                    if (!Directory.Exists(sdkPath))
                     {
                         _ = Task.Run(() =>
                         {
-                            ImageMessageBox.Show("未找到,sdk_data_*文件夹，请进入到账号输入界面(如所示)再手动关闭进程", "Main.png", "提示");
+                            ImageMessageBox.Show("未找到 Arknights 数据目录，请先通过鹰角启动器启动一次游戏。", "Start.png", "提示");
                         });
                     }
                     else
                     {
-                        if (Directory.Exists(backupFolder))
+                        var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
+                        if (sdkDir == null)
                         {
-                            await Task.Delay(3000);
-                            CopyDirectory(backupFolder, sdkDir);
+                            _ = Task.Run(() =>
+                            {
+                                ImageMessageBox.Show("未找到,sdk_data_*文件夹，请通过鹰角启动器启动一次进入到账号输入界面(如所示)再手动关闭进程", "Main.png", "提示");
+                            });
+                        }
+                        else
+                        {
+                            if (Directory.Exists(backupFolder))
+                            {
+                                await Task.Delay(3000);
+                                CopyDirectory(backupFolder, sdkDir);
+                            }
                         }
                     }
                 }
@@ -1028,9 +1021,9 @@ class Program
             return btn;
         }
 
-        private Button CreateServerButton_About(string text, Icon icon,Point pos)
+        private Button CreateServerButton_About(string text, Icon icon, Point pos)
         {
-            var originalBmp = icon.ToBitmap(); 
+            var originalBmp = icon.ToBitmap();
             var btn = new Button
             {
                 Text = text,
@@ -1369,5 +1362,4 @@ class Program
             return resized;
         }
     }
-
 }
