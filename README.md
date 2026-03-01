@@ -3,7 +3,8 @@
 ## 简介
 
 >此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
-<img width="335" height="236" alt="image" src="https://github.com/user-attachments/assets/38f2ea12-5de9-4ee7-92a7-56527f582afc" />
+<img width="468" height="295" alt="image" src="https://github.com/user-attachments/assets/25c3687a-023b-4580-855f-05a20c19f275" />
+
 
 
 ### 文件结构
@@ -27,7 +28,9 @@
 - [x] 双服切换
 - [x] 官服账号切换
 - [x] MAA一键启动
-- [x] 明日方舟WIKI [x] 明日方舟工具箱 [x] 明日方舟一图流
+- [x] 明日方舟WIKI
+- [x] 明日方舟工具箱
+- [x] 明日方舟一图流
       
 ## 特别鸣谢
 
