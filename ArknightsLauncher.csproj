@@ -19,17 +19,25 @@
 	<ItemGroup>
 		<EmbeddedResource Include="Payload\**\*" />
 		<EmbeddedResource Include="Payload_B\**\*" />
+		<None Remove="Icons\Arknights_Toolbox.ico" />
+		<None Remove="Icons\Arknights_Yituliu.ico" />
+		<None Remove="Icons\Info.ico" />
 		<None Remove="Icons\Main.png" />
+		<None Remove="Icons\PRTS_WIKI.ico" />
 		<None Remove="Payload.zip" />
 		<None Remove="Payload_B.zip" />
 		<EmbeddedResource Include="ArknightsGame.zip" />
+		<EmbeddedResource Include="Icons\Arknights_Toolbox.ico" />
+		<EmbeddedResource Include="Icons\Arknights_Yituliu.ico" />
 		<EmbeddedResource Include="Icons\GitHub.ico" />
+		<EmbeddedResource Include="Icons\Info.ico" />
 		<EmbeddedResource Include="Icons\Main.png" />
 		
 		<EmbeddedResource Include="Icons\official.ico" />
 		<EmbeddedResource Include="Icons\bserver.ico" />
 		<EmbeddedResource Include="Icons\ArknightsLauncher.ico" />
 		<EmbeddedResource Include="Icons\MAA.ico" />
+		<EmbeddedResource Include="Icons\PRTS_WIKI.ico" />
 		<EmbeddedResource Include="Payload.zip" />
 		<EmbeddedResource Include="Payload_B.zip" />
 	</ItemGroup>
