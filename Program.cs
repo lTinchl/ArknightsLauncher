@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Net.Http;
 
 enum ServerType
 {
@@ -16,12 +17,22 @@ enum ServerType
     Bilibili,  // B服
     MAA_Official,  // MAA 官
     MAA_Bilibili,  // MAA B
-    GitHub
+    GitHub,
+    Arknights_Yituliu,
+    Arknights_Toolbox,
+    PRTS_WIKI
 }
+
+
 
 class Program
 {
+    public static readonly Version CurrentVersion = new Version("1.3.5.1");
+
     const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
+    const string ArknightsYituliuUrl = "https://ark.yituliu.cn/";
+    const string ArknightsToolboxUrl = "https://arkntools.app/";
+    const string PrtsWikiUrl = "https://prts.wiki/";
 
     static readonly string ConfigDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -44,7 +55,59 @@ class Program
         Application.Run(new LaunchForm(selectForm.SelectedServer));
     }
 
+    public static async Task<(bool hasUpdate, string latestVersion, string downloadUrl)> CheckForUpdateAsync()
+    {
+        using var client = new HttpClient();
+        client.Timeout = TimeSpan.FromSeconds(10);
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0");
 
+        string apiUrl = "https://api.github.com/repos/lTinchl/ArknightsLauncher/releases/latest";
+        var response = await client.GetStringAsync(apiUrl);
+
+        var json = System.Text.Json.JsonDocument.Parse(response);
+        string tagName = json.RootElement.GetProperty("tag_name").GetString();
+        string latestVersionStr = tagName.TrimStart('v').TrimStart('V');
+        string downloadUrl = json.RootElement
+            .GetProperty("assets")[0]
+            .GetProperty("browser_download_url")
+            .GetString();
+
+        var latestVersion = new Version(latestVersionStr);
+        return (latestVersion > CurrentVersion, latestVersionStr, downloadUrl);
+    }
+
+    public static async Task DownloadAndInstallAsync(string downloadUrl, Button btn, string originalText)
+    {
+        using var client = new HttpClient(); 
+        client.Timeout = TimeSpan.FromSeconds(300); // 下载可能耗时较长
+        string tempPath = Path.Combine(Path.GetTempPath(), "update_setup.exe");
+
+        var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        long? totalBytes = response.Content.Headers.ContentLength;
+
+        using (var stream = await response.Content.ReadAsStreamAsync())
+        using (var fileStream = new FileStream(tempPath, FileMode.Create))
+        {
+            var buffer = new byte[8192];
+            long downloaded = 0;
+            int bytesRead;
+
+            while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, bytesRead);
+                downloaded += bytesRead;
+
+                if (totalBytes.HasValue)
+                {
+                    int percent = (int)(downloaded * 100 / totalBytes.Value);
+                    btn.Invoke((Action)(() => btn.Text = $"下载中 {percent}%"));
+                }
+            }
+        }
+
+        System.Diagnostics.Process.Start(tempPath);
+        Application.Exit();
+    }
 
     public static Icon LoadIcon(string name)
     {
@@ -212,6 +275,54 @@ class Program
             Process.Start(new ProcessStartInfo
             {
                 FileName = GitHubUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("无法打开浏览器\n" + ex.Message, "错误");
+        }
+    }
+
+    public static void OpenArknightsYituliu()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = ArknightsYituliuUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("无法打开浏览器\n" + ex.Message, "错误");
+        }
+    }
+
+    public static void OpenArknightsToolbox()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = ArknightsToolboxUrl,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("无法打开浏览器\n" + ex.Message, "错误");
+        }
+    }
+
+    public static void OpenPrtsWiki()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = PrtsWikiUrl,
                 UseShellExecute = true
             });
         }
@@ -484,7 +595,6 @@ class Program
         }
     }
 
-
     class AccountItem
     {
         public string Id { get; set; }
@@ -548,7 +658,7 @@ class Program
             Text = "Arknights Launcher";
             Icon = Program.LoadIcon("ArknightsLauncher.ico");
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(340, 210);
+            ClientSize = new Size(395, 200);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
 
@@ -572,7 +682,7 @@ class Program
             {
                 Text = "账号管理",
                 Size = new Size(120, 30),
-                Location = new Point(0, 5),
+                Location = new Point(5, 5),
                 Cursor = Cursors.Hand
             };
 
@@ -590,7 +700,7 @@ class Program
             {
                 Text = "修复记忆模糊",
                 Size = new Size(120, 30),
-                Location = new Point(220, 5),
+                Location = new Point(270, 5),
                 Cursor = Cursors.Hand
             };
 
@@ -651,131 +761,146 @@ class Program
 
             Controls.Add(fixBtn);
 
+
+            Button bServerBtn = null;
             // 创建 B服按钮
-            var bServerBtn = CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(0, 95), ServerType.Bilibili);
+            var officialBtn = CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(5, 35), ServerType.Official, () => bServerBtn);
+            Controls.Add(officialBtn);
+
+            // 官服按钮
+            bServerBtn = CreateServerButton("B服", Program.LoadIcon("bserver.ico"), new Point(5, 95), ServerType.Bilibili, null);
             bServerBtn.Enabled = !cfg.IsFirstRun; // 如果是首次运行，B服按钮禁用
             Controls.Add(bServerBtn);
 
-            // 官服按钮
-            var officialBtn = CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(0, 35), ServerType.Official);
-            Controls.Add(officialBtn);
-
-            // 官服按钮点击逻辑 → 首次运行点击官服按钮解锁 B服按钮
-            officialBtn.Click += async (_, __) =>
-            {
-                SelectedServer = ServerType.Official;
-
-                if (cfg.IsFirstRun)
-                {
-                    bServerBtn.Enabled = true;    // 解锁 B服按钮
-                    cfg.IsFirstRun = false;       // 标记首次点击完成
-                    Program.SaveConfig(cfg);      // 保存配置
-                }
-            };
-
-            Controls.Add(CreateServerButton_MAA("MAA-官", Program.LoadIcon("MAA.ico"), new Point(220, 35), ServerType.MAA_Official)); // MAA-官
-            Controls.Add(CreateServerButton_MAA("MAA-B", Program.LoadIcon("MAA.ico"), new Point(220, 95), ServerType.MAA_Bilibili)); //  MAA-B
-            Controls.Add(CreateServerButton_Git("By:Tinch", Program.LoadIcon("GitHub.ico"), new Point(110, 160))); // Github
+            Controls.Add(CreateServerButton_MAA("MAA-官", Program.LoadIcon("MAA.ico"), new Point(270, 35), ServerType.MAA_Official)); // MAA-官
+            Controls.Add(CreateServerButton_MAA("MAA-B", Program.LoadIcon("MAA.ico"), new Point(270, 95), ServerType.MAA_Bilibili)); //  MAA-B
+            Controls.Add(CreateServerButton_PrtsWiki("PRTS Wiki", Program.LoadIcon("PRTS_WIKI.ico"), new Point(5, 155))); // PRTS Wiki
+            Controls.Add(CreateServerButton_ArknightsToolbox("方舟工具箱", Program.LoadIcon("Arknights_Toolbox.ico"), new Point(85, 155))); // 明日方舟工具箱
+            Controls.Add(CreateServerButton_ArknightsYituliu("方舟一图流", Program.LoadIcon("Arknights_Yituliu.ico"), new Point(200, 155))); // 明日方舟一图流
+            Controls.Add(CreateServerButton_About("关于", Program.LoadIcon("Info.ico"),new Point(310, 155))); // Github
         }
 
-    private Button CreateServerButton(string text, Icon icon, Point pos, ServerType type)
-    {
-        var btn = new Button
+        //对图片进行缩放以适应 MessageBox 的显示需求
+        private Bitmap ResizeBitmap(Bitmap bmp, int width, int height)
         {
-            Text = text,
-            Image = icon.ToBitmap(),
-            ImageAlign = ContentAlignment.MiddleLeft,
-            TextAlign = ContentAlignment.MiddleCenter,
-            TextImageRelation = TextImageRelation.ImageBeforeText,
-            Font = new Font("Segoe UI", 11, FontStyle.Regular),
-            Size = new Size(120, 60),
-            Location = pos,
-            FlatStyle = FlatStyle.Standard,
-            Padding = new Padding(10, 0, 0, 0),
-            Cursor = Cursors.Hand
-        };
+            var resized = new Bitmap(width, height);
+            using (var g = Graphics.FromImage(resized))
+            {
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.DrawImage(bmp, 0, 0, width, height);
+            }
+            return resized;
+        }
 
-        btn.Click += async (_, __) =>
+        private Button CreateServerButton(string text, Icon icon, Point pos, ServerType type, Func<Button> getBServerBtn = null)
         {
-            SelectedServer = type;
-
-            try
+            var btn = new Button
             {
-                foreach (var proc in Process.GetProcessesByName("Arknights"))
+                Text = text,
+                Image = icon.ToBitmap(),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 11, FontStyle.Regular),
+                Size = new Size(120, 60),
+                Location = pos,
+                FlatStyle = FlatStyle.Standard,
+                Padding = new Padding(10, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+
+            btn.Click += async (_, __) =>
+            {
+                SelectedServer = type;
+
+                // ✅ 处理首次运行解锁B服的逻辑
+                if (type == ServerType.Official && getBServerBtn != null)
                 {
-                    proc.Kill();
-                    proc.WaitForExit(); // 等待进程真正结束，避免替换文件报错
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("关闭 Arknights 时出错:\n" + ex.Message, "错误");
-            }
-
-            var cfg = Program.LoadConfig();
-            string rootPath = cfg.RootPath;
-
-            // 如果没有配置或者目录不存在，就弹出选择文件夹
-            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
-            {
-                rootPath = Program.SelectFolder();
-                if (string.IsNullOrEmpty(rootPath)) return; // 用户取消
-
-                cfg.RootPath = rootPath;
-                Program.SaveConfig(cfg);
-            }
-
-
-            // 立即显示启动窗口
-            var launchForm = new LaunchForm(type, rootPath);
-            launchForm.Show();
-
-            if (type == ServerType.Official)
-            {
-                var selectedItem = officialCombo.SelectedItem as AccountItem;
-                if (selectedItem == null) return;
-
-                string selectedAccount = selectedItem.Id;
-                string backupFolder = Path.Combine(Program.AccountBackupDir, selectedAccount);
-
-                string sdkPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    "AppData", "LocalLow", "Hypergryph", "Arknights"
-                );
-
-
-                // 找到现有 sdk_data_* 文件夹
-                var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
-                if (sdkDir == null)
-                {
-                    // sdk_data_* 不存在 → 直接运行一次 Arknights，不做备份恢复
-                    _ = Task.Run(() =>
+                    var cfg = Program.LoadConfig();
+                    if (cfg.IsFirstRun)
                     {
-                        ImageMessageBox.Show("未找到,sdk_data_*文件夹，请进入到账号输入界面(如所示)再手动关闭进程", "Main.png", "提示");
-                    });
-                }
-                else
-                {
-                    // sdk_data_* 存在 → 如果有备份，复制 A1
-                    if (Directory.Exists(backupFolder))
-                    {
-                        await Task.Delay(3000);              // 等待进程完全清除
-                        CopyDirectory(backupFolder, sdkDir); // 复制 A1 备份到 sdk_data_*
+                        var bServerButton = getBServerBtn();
+                        if (bServerButton != null)
+                        {
+                            bServerButton.Enabled = true;    // 解锁 B服按钮
+                        }
+                        cfg.IsFirstRun = false;       // 标记首次点击完成
+                        Program.SaveConfig(cfg);      // 保存配置
                     }
                 }
-            }
 
-            // 异步执行启动逻辑
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(4000);         // 等待进程完全清除
-                await launchForm.RunCore(); // 在 LaunchForm 里做文件替换 + 启动
-                this.Invoke(() => this.Show());  // 回到主窗口
-            });
-        };
+                try
+                {
+                    foreach (var proc in Process.GetProcessesByName("Arknights"))
+                    {
+                        proc.Kill();
+                        proc.WaitForExit();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("关闭 Arknights 时出错:\n" + ex.Message, "错误");
+                }
 
-        return btn;
-    }
+                var cfg2 = Program.LoadConfig();
+                string rootPath = cfg2.RootPath;
+
+                // 如果没有配置或者目录不存在，就弹出选择文件夹
+                if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+                {
+                    rootPath = Program.SelectFolder();
+                    if (string.IsNullOrEmpty(rootPath)) return; // 用户取消
+
+                    cfg2.RootPath = rootPath;
+                    Program.SaveConfig(cfg2);
+                }
+
+                // 立即显示启动窗口
+                var launchForm = new LaunchForm(type, rootPath);
+                launchForm.Show();
+
+                if (type == ServerType.Official)
+                {
+                    var selectedItem = officialCombo.SelectedItem as AccountItem;
+                    if (selectedItem == null) return;
+
+                    string selectedAccount = selectedItem.Id;
+                    string backupFolder = Path.Combine(Program.AccountBackupDir, selectedAccount);
+
+                    string sdkPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                        "AppData", "LocalLow", "Hypergryph", "Arknights"
+                    );
+
+                    var sdkDir = Directory.GetDirectories(sdkPath, "sdk_data_*").FirstOrDefault();
+                    if (sdkDir == null)
+                    {
+                        _ = Task.Run(() =>
+                        {
+                            ImageMessageBox.Show("未找到,sdk_data_*文件夹，请进入到账号输入界面(如所示)再手动关闭进程", "Main.png", "提示");
+                        });
+                    }
+                    else
+                    {
+                        if (Directory.Exists(backupFolder))
+                        {
+                            await Task.Delay(3000);
+                            CopyDirectory(backupFolder, sdkDir);
+                        }
+                    }
+                }
+
+                // 异步执行启动逻辑
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(4000);
+                    await launchForm.RunCore();
+                    this.Invoke(() => this.Show());
+                });
+            };
+
+            return btn;
+        }
 
         private Button CreateServerButton_MAA(string text, Icon icon, Point pos, ServerType type)
         {
@@ -828,30 +953,106 @@ class Program
             return btn;
         }
 
-
-
-        private Button CreateServerButton_Git(string text, Icon icon, Point pos)
+        private Button CreateServerButton_PrtsWiki(string text, Icon icon, Point pos)
         {
+            var originalBmp = icon.ToBitmap();
             var btn = new Button
             {
                 Text = text,
-                Image = icon.ToBitmap(),
+                Image = ResizeBitmap(originalBmp, 25, 25),
                 ImageAlign = ContentAlignment.MiddleLeft,
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
-                Font = new Font("Segoe UI", 10, FontStyle.Regular),
-                Size = new Size(120, 40),
+                Font = new Font("Segoe UI", 8, FontStyle.Regular),
+                Size = new Size(80, 40),
                 Location = pos,
                 FlatStyle = FlatStyle.Standard,
-                Padding = new Padding(10, 0, 0, 0),
-                Cursor = Cursors.Hand
+                Padding = new Padding(8, 0, 0, 0),
+                Cursor = Cursors.Hand,
             };
-
+            originalBmp.Dispose();
             btn.Click += (_, __) =>
             {
-                Program.OpenGitHub();
+                Program.OpenPrtsWiki();
             };
+            return btn;
+        }
 
+        private Button CreateServerButton_ArknightsToolbox(string text, Icon icon, Point pos)
+        {
+            var originalBmp = icon.ToBitmap();
+            var btn = new Button
+            {
+                Text = text,
+                Image = ResizeBitmap(originalBmp, 25, 25),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 8, FontStyle.Regular),
+                Size = new Size(115, 40),
+                Location = pos,
+                FlatStyle = FlatStyle.Standard,
+                Padding = new Padding(8, 0, 0, 0),
+                Cursor = Cursors.Hand,
+            };
+            originalBmp.Dispose();
+            btn.Click += (_, __) =>
+            {
+                Program.OpenArknightsToolbox();
+            };
+            return btn;
+        }
+
+        private Button CreateServerButton_ArknightsYituliu(string text, Icon icon, Point pos)
+        {
+            var originalBmp = icon.ToBitmap();
+            var btn = new Button
+            {
+                Text = text,
+                Image = ResizeBitmap(originalBmp, 20, 20),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 8, FontStyle.Regular),
+                Size = new Size(110, 40),
+                Location = pos,
+                FlatStyle = FlatStyle.Standard,
+                Padding = new Padding(8, 0, 0, 0),
+                Cursor = Cursors.Hand,
+            };
+            originalBmp.Dispose();
+            btn.Click += (_, __) =>
+            {
+                Program.OpenArknightsYituliu();
+            };
+            return btn;
+        }
+
+        private Button CreateServerButton_About(string text, Icon icon,Point pos)
+        {
+            var originalBmp = icon.ToBitmap(); 
+            var btn = new Button
+            {
+                Text = text,
+                Image = ResizeBitmap(originalBmp, 25, 25),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 8, FontStyle.Regular),
+                Size = new Size(80, 40),
+                Location = pos,
+                FlatStyle = FlatStyle.Standard,
+                Padding = new Padding(8, 0, 0, 0),
+                Cursor = Cursors.Hand,
+            };
+            originalBmp.Dispose();
+            btn.Click += (_, __) =>
+            {
+                using (var aboutForm = new AboutForm())
+                {
+                    aboutForm.ShowDialog();
+                }
+            };
             return btn;
         }
     }
@@ -1009,4 +1210,164 @@ class Program
             MessageBox.Show("备份完成", "成功");
         }
     }
+
+    public class AboutForm : Form
+    {
+        public AboutForm()
+        {
+            InitializeComponent();
+        }
+
+        private void InitializeComponent()
+        {
+            this.Text = "关于";
+            this.Size = new Size(400, 300);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+
+            // 软件图标/Logo
+            var picBox = new PictureBox
+            {
+                Image = ResizeBitmap(Icon.ExtractAssociatedIcon(Application.ExecutablePath).ToBitmap(), 64, 64),
+                Size = new Size(64, 64),
+                Location = new Point(160, 20),
+                SizeMode = PictureBoxSizeMode.StretchImage
+            };
+
+            // 软件名
+            var labelName = new Label
+            {
+                Text = "Arknights Launcher",
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(0, 100),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Dock = DockStyle.None,
+            };
+            labelName.Left = (this.ClientSize.Width - labelName.PreferredWidth) / 2;
+
+            // 版本号
+            var labelVersion = new Label
+            {
+                Text = $"版本 v1.3.5.1",
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.Gray,
+                AutoSize = true,
+                Location = new Point(0, 135),
+            };
+            labelVersion.Left = (this.ClientSize.Width - labelVersion.PreferredWidth) / 2;
+
+            // 描述
+            var labelDesc = new Label
+            {
+                Text = "By:Tinch",
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                AutoSize = true,
+                Location = new Point(0, 160),
+            };
+            labelDesc.Left = (this.ClientSize.Width - labelDesc.PreferredWidth) / 2;
+
+            // GitHub 链接
+            var githubBmp = LoadIcon("GitHub.ico").ToBitmap();
+            var linkGitHub = new Button
+            {
+                Text = "GitHub 主页",
+                Image = ResizeBitmap(githubBmp, 25, 25),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.RoyalBlue,
+                AutoSize = true,
+                Location = new Point(128, 182),
+                FlatStyle = FlatStyle.Flat,        // 去掉按钮边框
+                BackColor = Color.Transparent,     // 透明背景
+                Cursor = Cursors.Hand,
+                Padding = new Padding(9, 0, 0, 0),
+            };
+            linkGitHub.FlatAppearance.BorderSize = 0;              // 无边框
+            linkGitHub.FlatAppearance.MouseOverBackColor = Color.Transparent;  // 悬停无背景色
+            linkGitHub.FlatAppearance.MouseDownBackColor = Color.Transparent;
+            linkGitHub.Click += (_, __) => Program.OpenGitHub();
+
+            // 检查更新按钮
+            var btnUpdate = new Button
+            {
+                Text = "检查更新",
+                Size = new Size(100, 30),
+                Location = new Point(0, 220),
+                FlatStyle = FlatStyle.System,
+                Cursor = Cursors.Hand,
+            };
+            btnUpdate.Left = (this.ClientSize.Width - btnUpdate.Width) / 2;
+
+            btnUpdate.Click += async (_, __) =>
+            {
+                btnUpdate.Enabled = false;
+                btnUpdate.Text = "检查中...";
+                try
+                {
+                    var (hasUpdate, latestVersion, downloadUrl) = await Program.CheckForUpdateAsync();
+                    if (hasUpdate)
+                    {
+                        var result = MessageBox.Show(
+                            $"发现新版本 v{latestVersion}，是否立即下载？",
+                            "有新版本",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Information
+                        );
+                        if (result == DialogResult.Yes)
+                        {
+                            await Program.DownloadAndInstallAsync(downloadUrl, btnUpdate, "检查更新");
+                            return; // 下载安装流程由外部方法接管按钮状态
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("当前已是最新版本！", "检查更新");
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    if (MessageBox.Show("连接超时，是否打开浏览器手动下载？", "检查更新失败",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                        Program.OpenGitHub();
+                }
+                catch (HttpRequestException)
+                {
+                    if (MessageBox.Show("无法连接到GitHub，是否打开浏览器手动下载？", "检查更新失败",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                        Program.OpenGitHub();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"检查更新失败：{ex.Message}", "错误");
+                }
+                finally
+                {
+                    btnUpdate.Text = "检查更新";
+                    btnUpdate.Enabled = true;
+                }
+            };
+
+            this.Controls.AddRange(new Control[]
+            {
+            picBox, labelName, labelVersion, labelDesc, linkGitHub, btnUpdate
+            });
+        }
+
+        private Bitmap ResizeBitmap(Bitmap bmp, int width, int height)
+        {
+            var resized = new Bitmap(width, height);
+            using (var g = Graphics.FromImage(resized))
+            {
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                g.DrawImage(bmp, 0, 0, width, height);
+            }
+            return resized;
+        }
+    }
+
 }
