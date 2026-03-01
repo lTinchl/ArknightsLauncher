@@ -37,9 +37,7 @@
 - 思路来源:[▶️2分钟教会你明日方舟PC端官服-B服互转！【明日方舟PC端】](https://www.bilibili.com/video/BV1VHFRzoE7T/?spm_id_from=333.337.search-card.all.click&vd_source=ec94b95a235413f9ad5d2ccb4597ac9f)
 - 账号无感切换:[▶️明日方舟PC端多账号无感切换教程](https://www.bilibili.com/video/BV1dgcsz1EjM/?share_source=copy_web&vd_source=5d993adf522c16219536a4e8a61f8484)
 - Github用户[[SkyHao723]](https://github.com/SkyHao723): https://github.com/SkyHao723/arknightsSwitcher
-- [明日方舟WiKi](https://prts.wiki/id/1)
-- [明日方舟工具箱](https://arkntools.app/)
-- [明日方舟一图流](https://ark.yituliu.cn/)
+- [明日方舟WiKi](https://prts.wiki/id/1) - [明日方舟工具箱](https://arkntools.app/) - [明日方舟一图流](https://ark.yituliu.cn/)
 - 图标提取工具: [Quick Any2Ico](https://www.carifred.com/quick_any2ico/)
 - 图标库: https://igoutu.cn/icons
 
