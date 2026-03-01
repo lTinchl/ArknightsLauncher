@@ -33,7 +33,6 @@
 		<EmbeddedResource Include="Icons\GitHub.ico" />
 		<EmbeddedResource Include="Icons\Info.ico" />
 		<EmbeddedResource Include="Icons\Main.png" />
-		
 		<EmbeddedResource Include="Icons\official.ico" />
 		<EmbeddedResource Include="Icons\bserver.ico" />
 		<EmbeddedResource Include="Icons\ArknightsLauncher.ico" />
