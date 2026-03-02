@@ -1,11 +1,23 @@
-# ArknightsLauncher（明日方舟启动器）
+<div align="center">
 
-## 简介
-
->此项目使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
-<img width="468" height="295" alt="image" src="https://github.com/user-attachments/assets/25c3687a-023b-4580-855f-05a20c19f275" />
+<img width="252" height="252" alt="image" src="https://github.com/user-attachments/assets/d7ea569c-68ff-49b7-ae0c-3939b5c08c26" /> 
 
 
+# ArknightsLauncher
+
+![C#](https://img.shields.io/badge/C%23-12-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Commits](https://img.shields.io/github/commit-activity/m/lTinchl/ArknightsLauncher)<br>
+![Stars](https://img.shields.io/github/stars/lTinchl/ArknightsLauncher)
+![Downloads](https://img.shields.io/github/downloads/lTinchl/ArknightsLauncher/total)
+
+<h3>一款明日方舟游戏启动器</h3><br>
+
+使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
+<img width="468" height="295" alt="image" src="https://github.com/user-attachments/assets/25c3687a-023b-4580-855f-05a20c19f275" /> 
+
+</div>
 
 ### 文件结构
 ```
