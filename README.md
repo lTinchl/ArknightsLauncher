@@ -14,7 +14,7 @@
 
 <h3>一款明日方舟游戏启动器</h3><br>
 
-使用C#对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
+对[[SkyHao723]](https://github.com/SkyHao723)大佬的[arknightsSwitcher](https://github.com/SkyHao723/arknightsSwitcher)进行重写,使用图形化操作界面并添加新功能。
 <img width="468" height="295" alt="image" src="https://github.com/user-attachments/assets/25c3687a-023b-4580-855f-05a20c19f275" /> 
 
 </div>
