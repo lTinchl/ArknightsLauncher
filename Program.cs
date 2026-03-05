@@ -24,7 +24,7 @@ enum ServerType
 
 class Program
 {
-    public static readonly Version CurrentVersion = new Version("1.3.5.1");
+    public static readonly Version CurrentVersion = new Version("1.3.5.2");
 
     const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
     const string ArknightsYituliuUrl = "https://ark.yituliu.cn/";
@@ -199,9 +199,19 @@ class Program
                     resourceStream.CopyTo(fileStream);
                 }
             }
-
-            // 解压到目标目录（覆盖模式）
-            ZipFile.ExtractToDirectory(tempZipPath, targetRoot, true);
+            int maxRetry = 5;
+            for (int i = 0; i < maxRetry; i++)
+            {
+                try
+                {
+                    ZipFile.ExtractToDirectory(tempZipPath, targetRoot, true);
+                    break; // 成功则跳出
+                }
+                catch (IOException) when (i < maxRetry - 1)
+                {
+                    System.Threading.Thread.Sleep(1000); // 等 1 秒后重试
+                }
+            }
         }
         finally
         {
@@ -348,6 +358,7 @@ class Program
 
         public string DefaultAccount { get; set; } = "";
         public bool IsFirstRun { get; set; } = true;
+        public bool IsGameExtracted { get; set; } = false;
     }
 
     class ImageMessageBox : Form
@@ -539,6 +550,15 @@ class Program
                         Program.SaveConfig(cfg);
                     }
 
+                    if (_serverType == ServerType.Bilibili && !cfg.IsGameExtracted)
+                    {
+                        this.Invoke((Action)(() => statusLabel.Text = "首次运行B服！修复基础文件…"));
+                        await Task.Run(() => Program.ExtractAndOverwrite(rootPath, "ArknightsGame.zip"));
+
+                        cfg.IsGameExtracted = true;
+                        Program.SaveConfig(cfg);
+                    }
+
                     string zipResourceName = _serverType == ServerType.Official ? "Payload.zip" : "Payload_B.zip";
                     await Task.Run(() => Program.ExtractAndOverwrite(rootPath, zipResourceName));
 
@@ -568,6 +588,7 @@ class Program
     class ServerSelectForm : Form
     {
         private ComboBox officialCombo;
+        private Button fixBtn;
         public ServerType SelectedServer { get; private set; }
 
         private void ReloadAccounts()
@@ -658,9 +679,9 @@ class Program
 
             Controls.Add(manageBtn);
 
-            var fixBtn = new Button
+            fixBtn = new Button
             {
-                Text = "修复记忆模糊",
+                Text = "修复客户端错误",
                 Size = new Size(120, 30),
                 Location = new Point(270, 5),
                 Cursor = Cursors.Hand
@@ -838,6 +859,8 @@ class Program
                     cfg2.RootPath = rootPath;
                     Program.SaveConfig(cfg2);
                 }
+
+
 
                 // 立即显示启动窗口
                 var launchForm = new LaunchForm(type, rootPath);
@@ -1244,7 +1267,7 @@ class Program
             // 版本号
             var labelVersion = new Label
             {
-                Text = $"版本 v1.3.5.1",
+                Text = $"版本 v1.3.5.2",
                 Font = new Font("Segoe UI", 9, FontStyle.Regular),
                 ForeColor = Color.Gray,
                 AutoSize = true,
