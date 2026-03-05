@@ -24,7 +24,7 @@ enum ServerType
 
 class Program
 {
-    public static readonly Version CurrentVersion = new Version("1.3.5.1");
+    public static readonly Version CurrentVersion = new Version("1.3.5.2");
 
     const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
     const string ArknightsYituliuUrl = "https://ark.yituliu.cn/";
