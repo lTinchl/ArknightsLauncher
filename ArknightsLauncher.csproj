@@ -11,7 +11,7 @@
 		<SelfContained>true</SelfContained>		
 		<PublishSingleFile>true</PublishSingleFile>
 		<PublishTrimmed>false</PublishTrimmed>
-
+		<Copyright>Tinch</Copyright>
 		<ApplicationIcon>Icons\ArknightsLauncher.ico</ApplicationIcon>
 
 	</PropertyGroup>
