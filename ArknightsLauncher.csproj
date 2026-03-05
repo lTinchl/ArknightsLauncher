@@ -13,6 +13,7 @@
 		<PublishTrimmed>false</PublishTrimmed>
 		<Copyright>Tinch</Copyright>
 		<ApplicationIcon>Icons\ArknightsLauncher.ico</ApplicationIcon>
+		<HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
 
 	</PropertyGroup>
 
