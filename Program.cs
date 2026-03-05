@@ -24,7 +24,7 @@ enum ServerType
 
 class Program
 {
-    public static readonly Version CurrentVersion = new Version("1.3.5.2");
+    public static readonly Version CurrentVersion = new Version("1.3.5.1");
 
     const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
     const string ArknightsYituliuUrl = "https://ark.yituliu.cn/";
@@ -49,23 +49,40 @@ class Program
         selectForm.ShowDialog();
     }
 
-    public static async Task<(bool hasUpdate, string latestVersion, string downloadUrl)> CheckForUpdateAsync()
+    public static async Task<(bool hasUpdate, string latestVersion, string downloadUrl)> CheckForUpdateAsync(bool useChina = false)
     {
         using var client = new HttpClient();
         client.Timeout = TimeSpan.FromSeconds(10);
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0");
 
-        string apiUrl = "https://api.github.com/repos/lTinchl/ArknightsLauncher/releases/latest";
-        var response = await client.GetStringAsync(apiUrl);
+        string tagName, downloadUrl;
 
-        var json = System.Text.Json.JsonDocument.Parse(response);
-        string tagName = json.RootElement.GetProperty("tag_name").GetString();
+        if (useChina)
+        {
+            var handler = new HttpClientHandler();
+            using var chinaClient = new HttpClient(handler);
+            chinaClient.Timeout = TimeSpan.FromSeconds(10);
+            chinaClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0");
+
+            string chinaApi = "http://47.107.30.27:8080/launcher/version.json";
+            var response = await chinaClient.GetStringAsync(chinaApi);
+            var json = System.Text.Json.JsonDocument.Parse(response);
+            tagName = json.RootElement.GetProperty("version").GetString();
+            downloadUrl = json.RootElement.GetProperty("download_url").GetString();
+        }
+        else
+        {
+            string apiUrl = "https://api.github.com/repos/lTinchl/ArknightsLauncher/releases/latest";
+            var response = await client.GetStringAsync(apiUrl);
+            var json = System.Text.Json.JsonDocument.Parse(response);
+            tagName = json.RootElement.GetProperty("tag_name").GetString();
+            downloadUrl = json.RootElement
+                .GetProperty("assets")[0]
+                .GetProperty("browser_download_url")
+                .GetString();
+        }
+
         string latestVersionStr = tagName.TrimStart('v').TrimStart('V');
-        string downloadUrl = json.RootElement
-            .GetProperty("assets")[0]
-            .GetProperty("browser_download_url")
-            .GetString();
-
         var latestVersion = new Version(latestVersionStr);
         return (latestVersion > CurrentVersion, latestVersionStr, downloadUrl);
     }
@@ -1237,7 +1254,7 @@ class Program
         private void InitializeComponent()
         {
             this.Text = "关于";
-            this.Size = new Size(400, 300);
+            this.Size = new Size(400, 330);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -1308,12 +1325,35 @@ class Program
             linkGitHub.FlatAppearance.MouseDownBackColor = Color.Transparent;
             linkGitHub.Click += (_, __) => Program.OpenGitHub();
 
+            var labelSource = new Label
+            {
+                Text = "更新源：",
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                AutoSize = true,
+                Location = new Point(0, 225),
+            };
+
+            var comboSource = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                Size = new Size(120, 25),
+                Location = new Point(0, 220),
+            };
+            comboSource.Items.AddRange(new string[] { "GitHub", "国内服务器(低速)" });
+            comboSource.SelectedIndex = 0;
+
+            // 水平居中：label + combobox 组合宽度
+            int groupWidth = labelSource.PreferredWidth + 4 + comboSource.Width;
+            labelSource.Left = (this.ClientSize.Width - groupWidth) / 2;
+            comboSource.Left = labelSource.Left + labelSource.PreferredWidth + 4;
+
             // 检查更新按钮
             var btnUpdate = new Button
             {
                 Text = "检查更新",
                 Size = new Size(100, 30),
-                Location = new Point(0, 220),
+                Location = new Point(0, 250),
                 FlatStyle = FlatStyle.System,
                 Cursor = Cursors.Hand,
             };
@@ -1323,9 +1363,10 @@ class Program
             {
                 btnUpdate.Enabled = false;
                 btnUpdate.Text = "检查中...";
+                bool useChina = comboSource.SelectedIndex == 1; // true = 国内服务器
                 try
                 {
-                    var (hasUpdate, latestVersion, downloadUrl) = await Program.CheckForUpdateAsync();
+                    var (hasUpdate, latestVersion, downloadUrl) = await Program.CheckForUpdateAsync(useChina);
                     if (hasUpdate)
                     {
                         var result = MessageBox.Show(
@@ -1337,7 +1378,7 @@ class Program
                         if (result == DialogResult.Yes)
                         {
                             await Program.DownloadAndInstallAsync(downloadUrl, btnUpdate, "检查更新");
-                            return; // 下载安装流程由外部方法接管按钮状态
+                            return;
                         }
                     }
                     else
@@ -1351,11 +1392,9 @@ class Program
                         MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                         Program.OpenGitHub();
                 }
-                catch (HttpRequestException)
+                catch (HttpRequestException ex)  
                 {
-                    if (MessageBox.Show("无法连接到GitHub，是否打开浏览器手动下载？", "检查更新失败",
-                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                        Program.OpenGitHub();
+                    MessageBox.Show($"请求失败：{ex.Message}\n状态码：{ex.StatusCode}", "调试信息");
                 }
                 catch (Exception ex)
                 {
@@ -1369,9 +1408,10 @@ class Program
             };
 
             this.Controls.AddRange(new Control[]
-            {
-            picBox, labelName, labelVersion, labelDesc, linkGitHub, btnUpdate
-            });
+              {
+                picBox, labelName, labelVersion, labelDesc, linkGitHub,
+                labelSource, comboSource, btnUpdate  
+              });
         }
 
         private Bitmap ResizeBitmap(Bitmap bmp, int width, int height)
