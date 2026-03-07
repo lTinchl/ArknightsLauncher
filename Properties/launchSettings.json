@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ArknightsLauncher (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "ArknightsLauncher (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

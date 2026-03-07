@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+		<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+		<RootNamespace>ArknightsLauncher</RootNamespace>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<Platforms>x86;x64;arm64</Platforms>
+		<RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
+		<UseWinUI>true</UseWinUI>
+		<EnableMsixTooling>true</EnableMsixTooling>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.WindowsAppSDK" Version="1.5.240227000" />
+		<PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.22621.3233" />
+		<Manifest Include="$(ApplicationManifest)" />
+	</ItemGroup>
+	<ItemGroup>
+		<EmbeddedResource Include="Icons\**\*" />
+		<EmbeddedResource Include="Payload.zip" Condition="Exists('Payload.zip')" />
+		<EmbeddedResource Include="Payload_B.zip" Condition="Exists('Payload_B.zip')" />
+		<EmbeddedResource Include="ArknightsGame.zip" Condition="Exists('ArknightsGame.zip')" />
+	</ItemGroup>
+	<ItemGroup>
+		<Compile Update="Views\SettingsDialog.xaml.cs">
+			<DependentUpon>SettingsDialog.xaml</DependentUpon>
+		</Compile>
+	</ItemGroup>
+</Project>
