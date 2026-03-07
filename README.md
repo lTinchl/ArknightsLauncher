@@ -1,3 +1,5 @@
+#此项目暂停维护,项目迁移至[]
+
 <div align="center">
 
 <img width="252" height="252" alt="image" src="https://github.com/user-attachments/assets/d7ea569c-68ff-49b7-ae0c-3939b5c08c26" /> 
@@ -8,7 +10,7 @@
 ![C#](https://img.shields.io/badge/C%23-12-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Commits](https://img.shields.io/github/commit-activity/m/lTinchl/ArknightsLauncher)<br>
+![Commits](https://img.shields.io/github/commit-activity/m/lTinchl/ArknightsLauncher-end)<br>
 ![Stars](https://img.shields.io/github/stars/lTinchl/ArknightsLauncher)
 ![Downloads](https://img.shields.io/github/downloads/lTinchl/ArknightsLauncher/total)
 
