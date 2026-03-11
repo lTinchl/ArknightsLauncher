@@ -643,7 +643,6 @@ class Program
     class ServerSelectForm : Form
     {
         private ComboBox officialCombo;
-        private Button fixBtn;
         public ServerType SelectedServer { get; private set; }
 
         private void ReloadAccounts()
