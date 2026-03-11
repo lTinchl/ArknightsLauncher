@@ -91,14 +91,17 @@ class Program
     public static async Task DownloadAndInstallAsync(string downloadUrl, Button btn, string originalText)
     {
         using var client = new HttpClient();
-        client.Timeout = TimeSpan.FromSeconds(300); // 下载可能耗时较长
-        string tempPath = Path.Combine(Path.GetTempPath(), "update_setup.exe");
+        client.Timeout = TimeSpan.FromSeconds(300);
+
+        string tempNewExe = Path.Combine(Path.GetTempPath(), "ArknightsLauncher_new.exe");
+        string batPath = Path.Combine(Path.GetTempPath(), "update_cleanup.bat");
+        string currentExe = Application.ExecutablePath;
 
         var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
         long? totalBytes = response.Content.Headers.ContentLength;
 
         using (var stream = await response.Content.ReadAsStreamAsync())
-        using (var fileStream = new FileStream(tempPath, FileMode.Create))
+        using (var fileStream = new FileStream(tempNewExe, FileMode.Create))
         {
             var buffer = new byte[8192];
             long downloaded = 0;
@@ -117,7 +120,22 @@ class Program
             }
         }
 
-        System.Diagnostics.Process.Start(tempPath);
+        string batContent = "@echo off\r\n" +
+            "timeout /t 2 /nobreak >nul\r\n" +
+            $"copy /y \"{tempNewExe}\" \"{currentExe}\"\r\n" +
+            $"start \"\" \"{currentExe}\"\r\n" +
+            $"del \"{tempNewExe}\"\r\n" +
+            "del \"%~f0\"\r\n";
+
+        File.WriteAllText(batPath, batContent, System.Text.Encoding.Default);
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = batPath,
+            UseShellExecute = true,
+            WindowStyle = ProcessWindowStyle.Hidden
+        });
+
         Application.Exit();
     }
 
@@ -376,7 +394,7 @@ class Program
 
         public string DefaultAccount { get; set; } = "";                    // 默认账号 ID（如 "A1"）
         public bool IsFirstRun { get; set; } = true;                        // 是否首次运行（用于控制首次点击官服时解锁 B 服按钮）
-        public bool DisableUpdateNotification { get; set; } = false;        // 是否禁用更新提醒
+        public string LastNotifiedVersion { get; set; } = "";               
     }
 
     class UpdateNotifyDialog : Form
@@ -756,32 +774,23 @@ class Program
                 try
                 {
                     var config = Program.LoadConfig();
-                    if (config.DisableUpdateNotification) return; // 用户已选择不再提醒，直接跳过
-
                     var (hasUpdate, latestVersion, _) = await Program.CheckForUpdateAsync();
+
                     if (hasUpdate)
                     {
-                        // 使用自定义对话框，包含"不再提醒"勾选框
-                        using var dlg = new UpdateNotifyDialog(latestVersion);
-                        dlg.ShowDialog();
-
-                        if (dlg.NeverRemind)
+                        if (config.LastNotifiedVersion != latestVersion)
                         {
-                            config.DisableUpdateNotification = true;
+                            // 第一次发现这个新版本，弹提示
+                            MessageBox.Show($"发现新版本 v{latestVersion}，请在关于页面更新。", "发现新版本");
+                            config.LastNotifiedVersion = latestVersion;
                             Program.SaveConfig(config);
                         }
-                        else
-                        {
-                            // 用户想更新，打开关于页面
-                            using var aboutForm = new AboutForm();
-                            aboutForm.ShowDialog();
-                        }
+
+                        // 只要有新版本，标题就加 [new]
+                        this.Text = "Arknights Launcher [New↑]";
                     }
                 }
-                catch
-                {
-                    // 静默失败
-                }
+                catch { }
             };
         }
 
@@ -1235,7 +1244,7 @@ class Program
         private void InitializeComponent()
         {
             this.Text = "关于";
-            this.Size = new Size(400, 360);
+            this.Size = new Size(400, 340);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -1328,31 +1337,12 @@ class Program
             labelSource.Left = (this.ClientSize.Width - groupWidth) / 2;
             comboSource.Left = labelSource.Left + labelSource.PreferredWidth + 4;
 
-            // ── 不再提醒勾选框 ──────────────────────────────────────────────
-            var cfg = Program.LoadConfig();
-            var chkDisableNotify = new CheckBox
-            {
-                Text = "启动时不再提醒更新",
-                AutoSize = true,
-                Checked = cfg.DisableUpdateNotification,
-                Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                Location = new Point(0, 252),
-                Cursor = Cursors.Hand
-            };
-            chkDisableNotify.Left = (this.ClientSize.Width - chkDisableNotify.PreferredSize.Width) / 2;
-            chkDisableNotify.CheckedChanged += (_, __) =>
-            {
-                var c = Program.LoadConfig();
-                c.DisableUpdateNotification = chkDisableNotify.Checked;
-                Program.SaveConfig(c);
-            };
-
             // 检查更新按钮
             var btnUpdate = new Button
             {
                 Text = "检查更新",
                 Size = new Size(100, 30),
-                Location = new Point(0, 275),
+                Location = new Point(0, 255),
                 FlatStyle = FlatStyle.System,
                 Cursor = Cursors.Hand,
             };
@@ -1409,7 +1399,7 @@ class Program
             this.Controls.AddRange(new Control[]
             {
                 picBox, labelName, labelVersion, labelDesc, linkGitHub,
-                labelSource, comboSource, chkDisableNotify, btnUpdate
+                labelSource, comboSource, btnUpdate
             });
         }
 
