@@ -18,13 +18,14 @@ enum ServerType
     MAA_Official,  // MAA 官
     MAA_Bilibili,  // MAA B
     GitHub         //Github 
+    
 }
 
 
 
 class Program
 {
-    public static readonly Version CurrentVersion = new Version("1.3.5.2");
+    public static readonly Version CurrentVersion = new Version("1.3.5.3");
 
     const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
     const string ArknightsYituliuUrl = "https://ark.yituliu.cn/";
@@ -373,9 +374,55 @@ class Program
         public Dictionary<string, string> Accounts { get; set; }
         = new Dictionary<string, string>();
 
-        public string DefaultAccount { get; set; } = "";
-        public bool IsFirstRun { get; set; } = true;
-        public bool IsGameExtracted { get; set; } = false;
+        public string DefaultAccount { get; set; } = "";                    // 默认账号 ID（如 "A1"）
+        public bool IsFirstRun { get; set; } = true;                        // 是否首次运行（用于控制首次点击官服时解锁 B 服按钮）
+        public bool DisableUpdateNotification { get; set; } = false;        // 是否禁用更新提醒
+    }
+
+    class UpdateNotifyDialog : Form
+    {
+        public bool NeverRemind => _chkNever.Checked;
+
+        private readonly CheckBox _chkNever;
+
+        public UpdateNotifyDialog(string latestVersion)
+        {
+            Text = "发现新版本";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            StartPosition = FormStartPosition.CenterParent;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ClientSize = new Size(340, 155);
+
+            var lbl = new Label
+            {
+                Text = $"发现新版本 v{latestVersion}，\n请在关于页面点击 [检查更新] 下载。",
+                AutoSize = false,
+                Size = new Size(300, 50),
+                Location = new Point(20, 18),
+                Font = new Font("Segoe UI", 10)
+            };
+            Controls.Add(lbl);
+
+            _chkNever = new CheckBox
+            {
+                Text = "不再提醒",
+                AutoSize = true,
+                Location = new Point(22, 75),
+                Font = new Font("Segoe UI", 9)
+            };
+            Controls.Add(_chkNever);
+
+            var btnOK = new Button
+            {
+                Text = "确定",
+                Size = new Size(80, 30),
+                Location = new Point(130, 108),
+                DialogResult = DialogResult.OK
+            };
+            Controls.Add(btnOK);
+            AcceptButton = btnOK;
+        }
     }
 
     class ImageMessageBox : Form
@@ -567,15 +614,6 @@ class Program
                         Program.SaveConfig(cfg);
                     }
 
-                    if (_serverType == ServerType.Bilibili && !cfg.IsGameExtracted)
-                    {
-                        this.Invoke((Action)(() => statusLabel.Text = "首次运行B服！修复基础文件…"));
-                        await Task.Run(() => Program.ExtractAndOverwrite(rootPath, "ArknightsGame.zip"));
-
-                        cfg.IsGameExtracted = true;
-                        Program.SaveConfig(cfg);
-                    }
-
                     string zipResourceName = _serverType == ServerType.Official ? "Payload.zip" : "Payload_B.zip";
                     await Task.Run(() => Program.ExtractAndOverwrite(rootPath, zipResourceName));
 
@@ -696,72 +734,6 @@ class Program
 
             Controls.Add(manageBtn);
 
-            fixBtn = new Button
-            {
-                Text = "修复客户端错误",
-                Size = new Size(120, 30),
-                Location = new Point(270, 5),
-                Cursor = Cursors.Hand
-            };
-
-            fixBtn.Click += (_, __) =>
-            {
-                try
-                {
-                    var cfg = Program.LoadConfig();
-                    string gamePath = cfg.RootPath;
-
-                    if (string.IsNullOrEmpty(gamePath) || !Directory.Exists(gamePath))
-                    {
-                        MessageBox.Show("未找到已配置的 Arknights Game 目录! ");
-                        return;
-                    }
-
-                    // 关闭正在运行的 Arknights 进程
-                    foreach (var p in Process.GetProcessesByName("Arknights"))
-                    {
-                        p.Kill();
-                        p.WaitForExit();
-                    }
-
-                    // 从嵌入资源中提取压缩包
-                    Assembly assembly = Assembly.GetExecutingAssembly();
-                    string resourceName = "ArknightsLauncher.ArknightsGame.zip"; // 格式: 命名空间.文件名
-
-                    // 临时保存路径
-                    string tempZipPath = Path.Combine(Path.GetTempPath(), "ArknightsGame.zip");
-
-                    using (Stream resourceStream = assembly.GetManifestResourceStream(resourceName))
-                    {
-                        if (resourceStream == null)
-                        {
-                            MessageBox.Show("未找到嵌入的 Arknights Game.zip 资源!");
-                            return;
-                        }
-
-                        using (FileStream fileStream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write))
-                        {
-                            resourceStream.CopyTo(fileStream);
-                        }
-                    }
-
-                    // 解压到目标目录
-                    ZipFile.ExtractToDirectory(tempZipPath, gamePath, true);
-
-                    // 删除临时文件
-                    File.Delete(tempZipPath);
-
-                    MessageBox.Show("修复完成！", "提示");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"修复失败: {ex.Message}", "错误");
-                }
-            };
-
-            Controls.Add(fixBtn);
-
-
             Button bServerBtn = null;
             // 创建 B服按钮
             var officialBtn = CreateServerButton("官服", Program.LoadIcon("official.ico"), new Point(5, 35), ServerType.Official, () => bServerBtn);
@@ -779,22 +751,32 @@ class Program
             Controls.Add(CreateServerButton_ArknightsYituliu("方舟一图流", Program.LoadIcon("Arknights_Yituliu.ico"), new Point(200, 155))); // 明日方舟一图流
             Controls.Add(CreateServerButton_About("关于", Program.LoadIcon("Info.ico"), new Point(310, 155))); // Github
 
-            //检查更新
+            // ── 启动时检查更新（若用户未选择"不再提醒"）──────────────────────
             this.Shown += async (_, __) =>
             {
                 try
                 {
+                    var config = Program.LoadConfig();
+                    if (config.DisableUpdateNotification) return; // 用户已选择不再提醒，直接跳过
+
                     var (hasUpdate, latestVersion, _) = await Program.CheckForUpdateAsync();
                     if (hasUpdate)
                     {
-                        MessageBox.Show(
-                            $"发现新版本 v{latestVersion}，请在关于页面点击[检查更新]下载。",
-                            "有新版本",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information
-                        );
-                        using var aboutForm = new AboutForm();
-                        aboutForm.ShowDialog();
+                        // 使用自定义对话框，包含"不再提醒"勾选框
+                        using var dlg = new UpdateNotifyDialog(latestVersion);
+                        dlg.ShowDialog();
+
+                        if (dlg.NeverRemind)
+                        {
+                            config.DisableUpdateNotification = true;
+                            Program.SaveConfig(config);
+                        }
+                        else
+                        {
+                            // 用户想更新，打开关于页面
+                            using var aboutForm = new AboutForm();
+                            aboutForm.ShowDialog();
+                        }
                     }
                 }
                 catch
@@ -1254,7 +1236,7 @@ class Program
         private void InitializeComponent()
         {
             this.Text = "关于";
-            this.Size = new Size(400, 330);
+            this.Size = new Size(400, 360);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -1284,7 +1266,7 @@ class Program
             // 版本号
             var labelVersion = new Label
             {
-                Text = $"版本 v1.3.5.2",
+                Text = $"版本 v{Program.CurrentVersion}",
                 Font = new Font("Segoe UI", 9, FontStyle.Regular),
                 ForeColor = Color.Gray,
                 AutoSize = true,
@@ -1315,13 +1297,13 @@ class Program
                 ForeColor = Color.RoyalBlue,
                 AutoSize = true,
                 Location = new Point(128, 182),
-                FlatStyle = FlatStyle.Flat,        // 去掉按钮边框
-                BackColor = Color.Transparent,     // 透明背景
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.Transparent,
                 Cursor = Cursors.Hand,
                 Padding = new Padding(9, 0, 0, 0),
             };
-            linkGitHub.FlatAppearance.BorderSize = 0;              // 无边框
-            linkGitHub.FlatAppearance.MouseOverBackColor = Color.Transparent;  // 悬停无背景色
+            linkGitHub.FlatAppearance.BorderSize = 0;
+            linkGitHub.FlatAppearance.MouseOverBackColor = Color.Transparent;
             linkGitHub.FlatAppearance.MouseDownBackColor = Color.Transparent;
             linkGitHub.Click += (_, __) => Program.OpenGitHub();
 
@@ -1343,17 +1325,35 @@ class Program
             comboSource.Items.AddRange(new string[] { "GitHub", "国内服务器(低速)" });
             comboSource.SelectedIndex = 0;
 
-            // 水平居中：label + combobox 组合宽度
             int groupWidth = labelSource.PreferredWidth + 4 + comboSource.Width;
             labelSource.Left = (this.ClientSize.Width - groupWidth) / 2;
             comboSource.Left = labelSource.Left + labelSource.PreferredWidth + 4;
+
+            // ── 不再提醒勾选框 ──────────────────────────────────────────────
+            var cfg = Program.LoadConfig();
+            var chkDisableNotify = new CheckBox
+            {
+                Text = "启动时不再提醒更新",
+                AutoSize = true,
+                Checked = cfg.DisableUpdateNotification,
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                Location = new Point(0, 252),
+                Cursor = Cursors.Hand
+            };
+            chkDisableNotify.Left = (this.ClientSize.Width - chkDisableNotify.PreferredSize.Width) / 2;
+            chkDisableNotify.CheckedChanged += (_, __) =>
+            {
+                var c = Program.LoadConfig();
+                c.DisableUpdateNotification = chkDisableNotify.Checked;
+                Program.SaveConfig(c);
+            };
 
             // 检查更新按钮
             var btnUpdate = new Button
             {
                 Text = "检查更新",
                 Size = new Size(100, 30),
-                Location = new Point(0, 250),
+                Location = new Point(0, 275),
                 FlatStyle = FlatStyle.System,
                 Cursor = Cursors.Hand,
             };
@@ -1363,7 +1363,7 @@ class Program
             {
                 btnUpdate.Enabled = false;
                 btnUpdate.Text = "检查中...";
-                bool useChina = comboSource.SelectedIndex == 1; // true = 国内服务器
+                bool useChina = comboSource.SelectedIndex == 1;
                 try
                 {
                     var (hasUpdate, latestVersion, downloadUrl) = await Program.CheckForUpdateAsync(useChina);
@@ -1392,7 +1392,7 @@ class Program
                         MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                         Program.OpenGitHub();
                 }
-                catch (HttpRequestException ex)  
+                catch (HttpRequestException ex)
                 {
                     MessageBox.Show($"请求失败：{ex.Message}\n状态码：{ex.StatusCode}", "调试信息");
                 }
@@ -1408,10 +1408,10 @@ class Program
             };
 
             this.Controls.AddRange(new Control[]
-              {
+            {
                 picBox, labelName, labelVersion, labelDesc, linkGitHub,
-                labelSource, comboSource, btnUpdate  
-              });
+                labelSource, comboSource, chkDisableNotify, btnUpdate
+            });
         }
 
         private Bitmap ResizeBitmap(Bitmap bmp, int width, int height)

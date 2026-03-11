@@ -28,7 +28,6 @@
 		<None Remove="Icons\Start.png" />
 		<None Remove="Payload.zip" />
 		<None Remove="Payload_B.zip" />
-		<EmbeddedResource Include="ArknightsGame.zip" />
 		<EmbeddedResource Include="Icons\Arknights_Toolbox.ico" />
 		<EmbeddedResource Include="Icons\Arknights_Yituliu.ico" />
 		<EmbeddedResource Include="Icons\GitHub.ico" />
