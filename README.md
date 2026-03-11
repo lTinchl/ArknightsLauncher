@@ -21,11 +21,10 @@
 
 ### 文件结构
 ```
-├── Icons
-├── Payload.zip              #官服替换用文件
-├── Payload_B.zip            #B服替换用文件
-├── ArknightsGame.zip        #客户端修复用文件
-└── Program.cs
+├── Icons                    # 图标文件夹
+├── Payload.zip              # 官服替换用文件
+├── Payload_B.zip            # B服替换用文件
+└── Program.cs               # 程序入口
 ```
 
 ## 注意事项
