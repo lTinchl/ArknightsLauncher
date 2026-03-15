@@ -39,6 +39,7 @@
 		<EmbeddedResource Include="Icons\MAA.ico" />
 		<EmbeddedResource Include="Icons\PRTS_WIKI.ico" />
 		<EmbeddedResource Include="Icons\Start.png" />
+		<EmbeddedResource Include="Icons\Setting.ico" />
 		<EmbeddedResource Include="Payload.zip" />
 		<EmbeddedResource Include="Payload_B.zip" />
 	</ItemGroup>
