@@ -25,7 +25,7 @@ enum ServerType
 
 class Program
 {
-    public static readonly Version CurrentVersion = new Version("1.3.5.3");
+    public static readonly Version CurrentVersion = new Version("1.3.5.4");
 
     const string GitHubUrl = "https://github.com/lTinchl/ArknightsLauncher";
     const string ArknightsYituliuUrl = "https://ark.yituliu.cn/";
@@ -350,7 +350,7 @@ class Program
         }
     }
 
-    public static void BackupAccount(string accountName)
+    public static async Task BackupAccount(string accountName)
     {
         // 获取 LocalLow 路径
         string sdkPath = Path.Combine(
@@ -364,21 +364,35 @@ class Program
         if (sdkDir == null) return;
 
         if (Directory.Exists(target)) Directory.Delete(target, true);
-        CopyDirectory(sdkDir, target);
+        await CopyDirectory(sdkDir, target);
     }
 
-    private static void CopyDirectory(string sourceDir, string targetDir)
+    private static async Task CopyDirectory(string sourceDir, string targetDir, int maxRetries = 5)
     {
+        sourceDir = Path.GetFullPath(sourceDir).TrimEnd(Path.DirectorySeparatorChar);
+        targetDir = Path.GetFullPath(targetDir).TrimEnd(Path.DirectorySeparatorChar);
+
         Directory.CreateDirectory(targetDir);
-        foreach (var dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
-        {
-            Directory.CreateDirectory(dir.Replace(sourceDir, targetDir));
-        }
 
         foreach (var file in Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
         {
-            string targetFile = file.Replace(sourceDir, targetDir);
-            File.Copy(file, targetFile, true);
+            string relativePath = file.Substring(sourceDir.Length + 1);
+            string destFile = Path.Combine(targetDir, relativePath);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destFile)!);
+
+            for (int i = 0; i < maxRetries; i++)
+            {
+                try
+                {
+                    File.Copy(file, destFile, true);
+                    break;
+                }
+                catch (IOException) when (i < maxRetries - 1)
+                {
+                    await Task.Delay(1000);
+                }
+            }
         }
     }
 
@@ -768,6 +782,29 @@ class Program
             Controls.Add(CreateServerButton_ArknightsYituliu("方舟一图流", Program.LoadIcon("Arknights_Yituliu.ico"), new Point(200, 155))); // 明日方舟一图流
             Controls.Add(CreateServerButton_About("关于", Program.LoadIcon("Info.ico"), new Point(310, 155))); // Github
 
+            //设定按钮
+            var settingsBtn = new Button
+            {
+                Text = "设置",
+                Image = ResizeBitmap(Program.LoadIcon("Setting.ico").ToBitmap(), 20, 20),
+                ImageAlign = ContentAlignment.MiddleLeft,
+                TextAlign = ContentAlignment.MiddleCenter,
+                TextImageRelation = TextImageRelation.ImageBeforeText,
+                Font = new Font("Segoe UI", 8, FontStyle.Regular),
+                Size = new Size(80, 30),
+                Location = new Point(310, 5),
+                FlatStyle = FlatStyle.Standard,
+                Padding = new Padding(10, -5, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            settingsBtn.Click += (_, __) =>
+            {
+                using var f = new SettingsForm();
+                f.ShowDialog();
+            };
+            Controls.Add(settingsBtn);
+
+
             // ── 启动时检查更新（若用户未选择"不再提醒"）──────────────────────
             this.Shown += async (_, __) =>
             {
@@ -907,7 +944,7 @@ class Program
                             if (Directory.Exists(backupFolder))
                             {
                                 await Task.Delay(3000);
-                                CopyDirectory(backupFolder, sdkDir);
+                                await CopyDirectory(backupFolder, sdkDir);
                             }
                         }
                     }
@@ -1224,12 +1261,12 @@ class Program
             LoadAccounts();
         }
 
-        private void BackupCurrent(object sender, EventArgs e)
+        private async void BackupCurrent(object sender, EventArgs e)
         {
             var selectedItem = listBox.SelectedItem as AccountItem;
             if (selectedItem == null) return;
 
-            Program.BackupAccount(selectedItem.Id);
+            await Program.BackupAccount(selectedItem.Id);
             MessageBox.Show("备份完成", "成功");
         }
     }
@@ -1412,6 +1449,132 @@ class Program
                 g.DrawImage(bmp, 0, 0, width, height);
             }
             return resized;
+        }
+    }
+
+    class SettingsForm : Form
+    {
+        public SettingsForm()
+        {
+            Text = "设置";
+            Size = new Size(400, 180);
+            StartPosition = FormStartPosition.CenterParent;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+
+            var cfg = Program.LoadConfig();
+
+            // ── 根目录 ──────────────────────────────────────
+            Controls.Add(new Label
+            {
+                Text = "根目录：",
+                AutoSize = true,
+                Location = new Point(15, 22),
+                Font = new Font("Segoe UI", 8)
+            });
+
+            var txtRoot = new TextBox
+            {
+                Text = cfg.RootPath,
+                ReadOnly = true,
+                Size = new Size(220, 25),
+                Location = new Point(80, 19),
+                Font = new Font("Segoe UI", 9)
+            };
+            Controls.Add(txtRoot);
+
+            var btnRoot = new Button
+            {
+                Text = "浏览...",
+                Size = new Size(70, 25),
+                Location = new Point(305, 19),
+                Cursor = Cursors.Hand
+            };
+            btnRoot.Click += (_, __) =>
+            {
+                string newPath = Program.SelectFolder();
+                if (string.IsNullOrEmpty(newPath)) return;
+                txtRoot.Text = newPath;
+                var c = Program.LoadConfig();
+                c.RootPath = newPath;
+                Program.SaveConfig(c);
+            };
+            Controls.Add(btnRoot);
+
+            // ── MAA 官服 ─────────────────────────────────────
+            Controls.Add(new Label
+            {
+                Text = "MAA-官：",
+                AutoSize = true,
+                Location = new Point(15, 62),
+                Font = new Font("Segoe UI", 9)
+            });
+
+            var txtMaaOfficial = new TextBox
+            {
+                Text = cfg.MAA_Official,
+                ReadOnly = true,
+                Size = new Size(220, 25),
+                Location = new Point(80, 59),
+                Font = new Font("Segoe UI", 9)
+            };
+            Controls.Add(txtMaaOfficial);
+
+            var btnMaaOfficial = new Button
+            {
+                Text = "浏览...",
+                Size = new Size(70, 25),
+                Location = new Point(305, 59),
+                Cursor = Cursors.Hand
+            };
+            btnMaaOfficial.Click += (_, __) =>
+            {
+                string newPath = Program.SelectExe("请选择 MAA.exe (MAA-官)", "MAA 程序");
+                if (string.IsNullOrEmpty(newPath)) return;
+                txtMaaOfficial.Text = newPath;
+                var c = Program.LoadConfig();
+                c.MAA_Official = newPath;
+                Program.SaveConfig(c);
+            };
+            Controls.Add(btnMaaOfficial);
+
+            // ── MAA B服 ──────────────────────────────────────
+            Controls.Add(new Label
+            {
+                Text = "MAA-B：",
+                AutoSize = true,
+                Location = new Point(15, 102),
+                Font = new Font("Segoe UI", 9)
+            });
+
+            var txtMaaBilibili = new TextBox
+            {
+                Text = cfg.MAA_Bilibili,
+                ReadOnly = true,
+                Size = new Size(220, 25),
+                Location = new Point(80, 99),
+                Font = new Font("Segoe UI", 9)
+            };
+            Controls.Add(txtMaaBilibili);
+
+            var btnMaaBilibili = new Button
+            {
+                Text = "浏览...",
+                Size = new Size(70, 25),
+                Location = new Point(305, 99),
+                Cursor = Cursors.Hand
+            };
+            btnMaaBilibili.Click += (_, __) =>
+            {
+                string newPath = Program.SelectExe("请选择 MAA.exe (MAA-B)", "MAA 程序");
+                if (string.IsNullOrEmpty(newPath)) return;
+                txtMaaBilibili.Text = newPath;
+                var c = Program.LoadConfig();
+                c.MAA_Bilibili = newPath;
+                Program.SaveConfig(c);
+            };
+            Controls.Add(btnMaaBilibili);
         }
     }
 }
