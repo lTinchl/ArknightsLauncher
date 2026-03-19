@@ -15,17 +15,12 @@ namespace ArknightsLauncher.Helpers
                     UseDescriptionForTitle = true,
                     ShowNewFolderButton = false
                 };
-
                 if (dialog.ShowDialog() != DialogResult.OK)
                     return "";
-
                 string selectedPath = dialog.SelectedPath;
-                string folderName = Path.GetFileName(selectedPath.TrimEnd(Path.DirectorySeparatorChar));
-
-                if (folderName.Equals("Arknights Game", System.StringComparison.OrdinalIgnoreCase))
+                if (File.Exists(Path.Combine(selectedPath, "Arknights.exe")))
                     return selectedPath;
-
-                MessageBox.Show("请选择名为 'Arknights Game' 的文件夹作为根目录", "错误");
+                MessageBox.Show("未找到 'Arknights.exe'，请重新选择游戏根目录", "错误");
             }
         }
 
