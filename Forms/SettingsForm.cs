@@ -259,9 +259,26 @@ namespace ArknightsLauncher.Forms
                 ConfigHelper.Save(c);
             };
 
+            var chkExitAfterLaunch = new CheckBox
+            {
+                Text = "游戏启动后自动关闭本软件",
+                AutoSize = true,
+                Location = new Point(0, 122),
+                Font = new Font("Segoe UI", 9f),
+                Checked = cfg.ExitAfterLaunch,
+                Cursor = Cursors.Hand
+            };
+
+            chkExitAfterLaunch.CheckedChanged += (_, __) =>
+            {
+                var c = ConfigHelper.Load();
+                c.ExitAfterLaunch = chkExitAfterLaunch.Checked;
+                ConfigHelper.Save(c);
+            };
+
             _pageSoftware.Controls.AddRange(new Control[]
             {
-                chkShowTray, chkMinToTray, chkAutoOfficial, chkAutoBilibili
+                chkShowTray, chkMinToTray, chkAutoOfficial, chkAutoBilibili, chkExitAfterLaunch
             });
 
             _contentPanel.Controls.Add(_pageSoftware);

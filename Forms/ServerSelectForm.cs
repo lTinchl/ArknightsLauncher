@@ -21,7 +21,8 @@ namespace ArknightsLauncher.Forms
             Text = "Arknights Launcher";
             Icon = ResourceHelper.LoadIcon("ArknightsLauncher.ico");
             StartPosition = FormStartPosition.CenterScreen;
-            ClientSize = new Size(395, 200);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(430, 205);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = true;
@@ -62,10 +63,11 @@ namespace ArknightsLauncher.Forms
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 Font = new Font("Segoe UI", 8, FontStyle.Regular),
                 Size = new Size(80, 30),
-                Location = new Point(310, 5),
+                Location = new Point(345, 5),
                 FlatStyle = FlatStyle.Standard,
                 Padding = new Padding(10, -5, 0, 0),
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             settingsBtn.Click += (_, __) =>
             {
@@ -84,12 +86,12 @@ namespace ArknightsLauncher.Forms
             Controls.Add(_bServerBtn);
             bServerBtn = _bServerBtn; // 修复闭包捕获
 
-            Controls.Add(CreateMAAButton  ("MAA-官",   ResourceHelper.LoadIcon("MAA.ico"),              new Point(270, 35),  ServerType.MAA_Official));
-            Controls.Add(CreateMAAButton  ("MAA-B",    ResourceHelper.LoadIcon("MAA.ico"),              new Point(270, 95),  ServerType.MAA_Bilibili));
-            Controls.Add(CreateLinkButton ("PRTS Wiki",  ResourceHelper.LoadIcon("PRTS_WIKI.ico"),      new Point(5,   155), 80,  BrowserHelper.OpenPrtsWiki));
-            Controls.Add(CreateLinkButton ("方舟工具箱", ResourceHelper.LoadIcon("Arknights_Toolbox.ico"), new Point(85,  155), 115, BrowserHelper.OpenToolbox));
-            Controls.Add(CreateLinkButton ("方舟一图流", ResourceHelper.LoadIcon("Arknights_Yituliu.ico"), new Point(200, 155), 110, BrowserHelper.OpenYituliu));
-            Controls.Add(CreateAboutButton("关于",      ResourceHelper.LoadIcon("Info.ico"),            new Point(310, 155)));
+            Controls.Add(CreateMAAButton  ("MAA-官",   ResourceHelper.LoadIcon("MAA.ico"),              new Point(305, 35),  ServerType.MAA_Official));
+            Controls.Add(CreateMAAButton  ("MAA-B",    ResourceHelper.LoadIcon("MAA.ico"),              new Point(305, 95),  ServerType.MAA_Bilibili));
+            Controls.Add(CreateLinkButton ("PRTS Wiki",  ResourceHelper.LoadIcon("PRTS_WIKI.ico"),      new Point(5,   155), 90,  BrowserHelper.OpenPrtsWiki));
+            Controls.Add(CreateLinkButton ("方舟工具箱", ResourceHelper.LoadIcon("Arknights_Toolbox.ico"), new Point(95,  155), 130, BrowserHelper.OpenToolbox));
+            Controls.Add(CreateLinkButton ("方舟一图流", ResourceHelper.LoadIcon("Arknights_Yituliu.ico"), new Point(225, 155), 120, BrowserHelper.OpenYituliu));
+            Controls.Add(CreateAboutButton("关于",      ResourceHelper.LoadIcon("Info.ico"),            new Point(345, 155)));
 
             // 启动时检查更新 & 自动启动
             this.Shown += OnShown;

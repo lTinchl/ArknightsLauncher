@@ -84,7 +84,13 @@ namespace ArknightsLauncher.Forms
                 {
                     await Task.Delay(4000);
                     await launchForm.RunCore();
-                    this.Invoke(() => this.Show());
+                    this.Invoke(() =>
+                    {
+                        if (ConfigHelper.Load().ExitAfterLaunch)
+                            Application.Exit();
+                        else
+                            this.Show();
+                    });
                 });
             };
 
@@ -135,7 +141,7 @@ namespace ArknightsLauncher.Forms
                 TextAlign = ContentAlignment.MiddleCenter,
                 TextImageRelation = TextImageRelation.ImageBeforeText,
                 Font = new Font("Segoe UI", 8, FontStyle.Regular),
-                Size = new Size(width, 40),
+                Size = new Size(width, 45),
                 Location = pos,
                 FlatStyle = FlatStyle.Standard,
                 Padding = new Padding(8, 0, 0, 0),
