@@ -19,6 +19,7 @@ namespace ArknightsLauncher
         [System.STAThread]
         static void Main()
         {
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Directory.CreateDirectory(ConfigHelper.AccountBackupDir);
