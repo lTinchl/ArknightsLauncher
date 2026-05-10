@@ -26,10 +26,11 @@ namespace ArknightsLauncher.Helpers
 
         public static string SelectExe(string title, string filterName)
         {
+            string displayFilterName = string.IsNullOrWhiteSpace(filterName) ? "可执行文件" : filterName;
             using var dialog = new OpenFileDialog
             {
                 Title = title,
-                Filter = "MAA.exe|MAA.exe",
+                Filter = $"{displayFilterName} (*.exe)|*.exe|所有文件 (*.*)|*.*",
                 CheckFileExists = true,
                 CheckPathExists = true,
                 Multiselect = false

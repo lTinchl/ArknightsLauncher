@@ -9,8 +9,8 @@ namespace ArknightsLauncher
     {
         Official,       // 官服
         Bilibili,       // B服
-        MAA_Official,   // MAA 官
-        MAA_Bilibili,   // MAA B
+        LinkedSoftwareOfficial,   // 官服联动软件
+        LinkedSoftwareBilibili,   // B服联动软件
         GitHub          // Github
     }
 

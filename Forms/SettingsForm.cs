@@ -1,7 +1,9 @@
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using ArknightsLauncher.Helpers;
+using ArknightsLauncher.Models;
 
 namespace ArknightsLauncher.Forms
 {
@@ -10,12 +12,13 @@ namespace ArknightsLauncher.Forms
         private Panel _navPanel;
         private Panel _contentPanel;
         private Panel _pagePath;
+        private Panel _pageLinkedSoftware;
         private Panel _pageSoftware;
 
         public SettingsForm()
         {
             Text = "设置";
-            Size = new Size(530, 240);
+            Size = new Size(560, 430);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -24,6 +27,7 @@ namespace ArknightsLauncher.Forms
 
             BuildLayout();
             BuildPagePath();
+            BuildPageLinkedSoftware();
             BuildPageSoftware();
             ShowPage("路径设置");
         }
@@ -40,7 +44,7 @@ namespace ArknightsLauncher.Forms
                 e.Graphics.DrawLine(new System.Drawing.Pen(Color.FromArgb(220, 220, 220)),
                     _navPanel.Width - 1, 0, _navPanel.Width - 1, _navPanel.Height);
 
-            string[] pages = { "路径设置", "软件设置" };
+            string[] pages = { "路径设置", "联动软件", "软件设置" };
             for (int i = 0; i < pages.Length; i++)
             {
                 string pageName = pages[i];
@@ -87,6 +91,7 @@ namespace ArknightsLauncher.Forms
             }
 
             _pagePath.Visible     = pageName == "路径设置";
+            _pageLinkedSoftware.Visible = pageName == "联动软件";
             _pageSoftware.Visible = pageName == "软件设置";
         }
 
@@ -98,12 +103,124 @@ namespace ArknightsLauncher.Forms
             AddTitle(_pagePath, "路径设置");
             AddPathRow(_pagePath, "游戏根目录：", cfg.RootPath, 50,
                 newPath => { var c = ConfigHelper.Load(); c.RootPath = newPath; ConfigHelper.Save(c); }, isFolder: true);
-            AddPathRow(_pagePath, "MAA（官服）：", cfg.MAA_Official, 90,
-                newPath => { var c = ConfigHelper.Load(); c.MAA_Official = newPath; ConfigHelper.Save(c); }, isFolder: false);
-            AddPathRow(_pagePath, "MAA（B服）：", cfg.MAA_Bilibili, 130,
-                newPath => { var c = ConfigHelper.Load(); c.MAA_Bilibili = newPath; ConfigHelper.Save(c); }, isFolder: false);
 
             _contentPanel.Controls.Add(_pagePath);
+        }
+
+        private void BuildPageLinkedSoftware()
+        {
+            _pageLinkedSoftware = new Panel { Dock = DockStyle.Fill, Visible = false };
+            var cfg = ConfigHelper.Load();
+            cfg.NormalizeLinkedSoftwares();
+            ConfigHelper.Save(cfg);
+
+            AddTitle(_pageLinkedSoftware, "联动软件");
+
+            AddLinkedSoftwareSection(_pageLinkedSoftware, "官服联动软件", 44, true);
+            AddLinkedSoftwareSection(_pageLinkedSoftware, "B服联动软件", 180, false);
+            _contentPanel.Controls.Add(_pageLinkedSoftware);
+        }
+
+        private void AddLinkedSoftwareSection(Panel page, string title, int y, bool isOfficial)
+        {
+            var cfg = ConfigHelper.Load();
+
+            page.Controls.Add(new Label
+            {
+                Text = title,
+                AutoSize = true,
+                Location = new Point(0, y + 3),
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(45, 45, 45)
+            });
+
+            var chkEnable = new CheckBox
+            {
+                Text = "启用",
+                AutoSize = true,
+                Location = new Point(125, y + 2),
+                Font = new Font("Segoe UI", 9f),
+                Checked = cfg.IsLinkedSoftwareEnabled(isOfficial),
+                Cursor = Cursors.Hand
+            };
+            page.Controls.Add(chkEnable);
+
+            var list = new ListBox
+            {
+                Size = new Size(380, 72),
+                Location = new Point(0, y + 30),
+                Font = new Font("Segoe UI", 8.5f),
+                HorizontalScrollbar = true
+            };
+            page.Controls.Add(list);
+
+            void ReloadLinkedSoftwareList()
+            {
+                list.Items.Clear();
+                foreach (var item in ConfigHelper.Load().GetLinkedSoftwareItems(isOfficial))
+                    list.Items.Add(item);
+            }
+            ReloadLinkedSoftwareList();
+
+            chkEnable.CheckedChanged += (_, __) =>
+            {
+                var c = ConfigHelper.Load();
+                if (isOfficial) c.EnableLinkedSoftwareOfficial = chkEnable.Checked;
+                else c.EnableLinkedSoftwareBilibili = chkEnable.Checked;
+                ConfigHelper.Save(c);
+            };
+
+            var btnAdd = new Button
+            {
+                Text = "添加...",
+                Size = new Size(72, 26),
+                Location = new Point(0, y + 110),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+            btnAdd.Click += (_, __) =>
+            {
+                string exePath = DialogHelper.SelectExe($"请选择{title}", "可执行文件");
+                if (string.IsNullOrEmpty(exePath)) return;
+
+                var c = ConfigHelper.Load();
+                c.NormalizeLinkedSoftwares(isOfficial);
+                var target = isOfficial ? c.LinkedSoftwaresOfficial : c.LinkedSoftwaresBilibili;
+                if (!target.Any(item => string.Equals(item.Path, exePath, System.StringComparison.OrdinalIgnoreCase)))
+                {
+                    target.Add(new LinkedSoftwareItem
+                    {
+                        Name = Path.GetFileNameWithoutExtension(exePath),
+                        Path = exePath
+                    });
+                    ConfigHelper.Save(c);
+                }
+                ReloadLinkedSoftwareList();
+            };
+
+            var btnRemove = new Button
+            {
+                Text = "删除",
+                Size = new Size(72, 26),
+                Location = new Point(82, y + 110),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+            btnRemove.Click += (_, __) =>
+            {
+                if (list.SelectedItem is not LinkedSoftwareItem selected) return;
+
+                var c = ConfigHelper.Load();
+                c.NormalizeLinkedSoftwares(isOfficial);
+                var target = isOfficial ? c.LinkedSoftwaresOfficial : c.LinkedSoftwaresBilibili;
+                target.RemoveAll(item => string.Equals(item.Path, selected.Path, System.StringComparison.OrdinalIgnoreCase));
+                ConfigHelper.Save(c);
+                ReloadLinkedSoftwareList();
+            };
+
+            page.Controls.AddRange(new Control[] { btnAdd, btnRemove });
         }
 
         private void AddTitle(Panel page, string title)
@@ -118,10 +235,36 @@ namespace ArknightsLauncher.Forms
             });
             page.Controls.Add(new Panel
             {
-                Size = new Size(320, 1),
+                Size = new Size(360, 1),
                 Location = new Point(0, 26),
                 BackColor = Color.FromArgb(220, 220, 220)
             });
+        }
+
+        private void AddTextRow(Panel page, string label, string currentValue, int y,
+            System.Action<string> onSave)
+        {
+            page.Controls.Add(new Label
+            {
+                Text = label,
+                AutoSize = true,
+                Location = new Point(0, y + 2),
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(60, 60, 60)
+            });
+
+            var txt = new TextBox
+            {
+                Text = currentValue,
+                Size = new Size(232, 24),
+                Location = new Point(120, y),
+                Font = new Font("Segoe UI", 9f),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                MaxLength = 10
+            };
+            txt.TextChanged += (_, __) => onSave(txt.Text);
+            page.Controls.Add(txt);
         }
 
         private void AddPathRow(Panel page, string label, string currentValue, int y,
@@ -141,7 +284,7 @@ namespace ArknightsLauncher.Forms
                 Text = currentValue,
                 ReadOnly = true,
                 Size = new Size(195, 24),
-                Location = new Point(100, y),
+                Location = new Point(120, y),
                 Font = new Font("Segoe UI", 9f),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle
@@ -152,14 +295,14 @@ namespace ArknightsLauncher.Forms
             {
                 Text = "浏览...",
                 Size = new Size(52, 24),
-                Location = new Point(300, y),
+                Location = new Point(320, y),
                 Cursor = Cursors.Hand,
                 FlatStyle = FlatStyle.System,
                 Font = new Font("Segoe UI", 8.5f)
             };
             btn.Click += (_, __) =>
             {
-                string newPath = isFolder ? DialogHelper.SelectFolder() : DialogHelper.SelectExe(label, "");
+                string newPath = isFolder ? DialogHelper.SelectFolder() : DialogHelper.SelectExe(label, "可执行文件");
                 if (string.IsNullOrEmpty(newPath)) return;
                 txt.Text = newPath;
                 onSave(newPath);

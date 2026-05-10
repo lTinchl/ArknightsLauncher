@@ -18,6 +18,7 @@ namespace ArknightsLauncher.Helpers
         }
 
         public static void OpenGitHub()        => Open(AppInfo.GitHubUrl);
+        public static void OpenGitHubReleases() => Open(AppInfo.GitHubReleasesUrl);
         public static void OpenQuarkPan()      => Open(AppInfo.QuarkPanUrl);
         public static void OpenYituliu()       => Open(AppInfo.ArknightsYituliuUrl);
         public static void OpenToolbox()       => Open(AppInfo.ArknightsToolboxUrl);

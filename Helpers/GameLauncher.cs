@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Collections.Generic;
+using ArknightsLauncher.Models;
 
 namespace ArknightsLauncher.Helpers
 {
@@ -22,10 +24,10 @@ namespace ArknightsLauncher.Helpers
             });
         }
 
-        public static void StartMAA(string exePath)
+        public static void StartLinkedSoftware(string exePath)
         {
             if (!File.Exists(exePath))
-                throw new Exception("未找到 MAA.exe");
+                throw new Exception("未找到联动软件程序");
 
             Process.Start(new ProcessStartInfo
             {
@@ -33,6 +35,44 @@ namespace ArknightsLauncher.Helpers
                 WorkingDirectory = Path.GetDirectoryName(exePath)!,
                 UseShellExecute = true
             });
+        }
+
+        public static void StartLinkedSoftwares(IEnumerable<LinkedSoftwareItem> softwares, bool requireAny = true)
+        {
+            var items = softwares
+                .Where(item => !string.IsNullOrWhiteSpace(item.Path))
+                .ToList();
+
+            if (items.Count == 0)
+            {
+                if (requireAny)
+                    throw new Exception("请先在设置中添加联动软件");
+                return;
+            }
+
+            var errors = new List<string>();
+            foreach (var item in items)
+            {
+                try
+                {
+                    StartLinkedSoftware(item.Path);
+                }
+                catch (Exception ex)
+                {
+                    string name = string.IsNullOrWhiteSpace(item.Name)
+                        ? Path.GetFileNameWithoutExtension(item.Path)
+                        : item.Name;
+                    errors.Add($"{name}: {ex.Message}");
+                }
+            }
+
+            if (errors.Count > 0)
+                throw new Exception("部分联动软件启动失败：\n" + string.Join("\n", errors));
+        }
+
+        public static void StartMAA(string exePath)
+        {
+            StartLinkedSoftware(exePath);
         }
 
         public static void KillArknightsProcesses()

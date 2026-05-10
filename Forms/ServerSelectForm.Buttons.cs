@@ -12,7 +12,7 @@ namespace ArknightsLauncher.Forms
     {
         private Button CreateServerButton(string text, System.Drawing.Icon icon, Point pos, ServerType type, Func<Button> getBServerBtn)
         {
-            var btn = MakeGameButton(text, icon, pos, new Size(120, 60));
+            var btn = MakeGameButton(text, icon, pos, new Size(220, 76));
 
             btn.Click += async (_, __) =>
             {
@@ -97,24 +97,18 @@ namespace ArknightsLauncher.Forms
             return btn;
         }
 
-        private Button CreateMAAButton(string text, System.Drawing.Icon icon, Point pos, ServerType type)
+        private Button CreateLinkedSoftwareButton(string text, System.Drawing.Icon icon, Point pos, ServerType type)
         {
-            var btn = MakeGameButton(text, icon, pos, new Size(120, 60));
+            var btn = MakeGameButton(text, icon, pos, new Size(220, 76));
 
             btn.Click += async (_, __) =>
             {
                 var cfg = ConfigHelper.Load();
-                string exePath = type == ServerType.MAA_Official ? cfg.MAA_Official : cfg.MAA_Bilibili;
-
-                if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+                bool isOfficialLinkedSoftware = type == ServerType.LinkedSoftwareOfficial;
+                if (!cfg.IsLinkedSoftwareEnabled(isOfficialLinkedSoftware))
                 {
-                    string title = type == ServerType.MAA_Official ? "请选择 MAA.exe (MAA-官)" : "请选择 MAA.exe (MAA-B)";
-                    exePath = DialogHelper.SelectExe(title, "MAA 程序");
-                    if (string.IsNullOrEmpty(exePath)) return;
-
-                    if (type == ServerType.MAA_Official) cfg.MAA_Official = exePath;
-                    else cfg.MAA_Bilibili = exePath;
-                    ConfigHelper.Save(cfg);
+                    MessageBox.Show($"{(isOfficialLinkedSoftware ? "官服" : "B服")}联动软件开关已关闭，请在设置中开启。", "提示");
+                    return;
                 }
 
                 var launchForm = new LaunchForm(type);
@@ -132,29 +126,29 @@ namespace ArknightsLauncher.Forms
 
         private Button CreateLinkButton(string text, System.Drawing.Icon icon, Point pos, int width, Action onClick)
         {
-            var originalBmp = icon.ToBitmap();
-            var btn = new Button
+            var btn = new StyledIconButton
             {
                 Text = text,
-                Image = ResizeBitmap(originalBmp, 25, 25),
-                ImageAlign = ContentAlignment.MiddleLeft,
-                TextAlign = ContentAlignment.MiddleCenter,
-                TextImageRelation = TextImageRelation.ImageBeforeText,
-                Font = new Font("Segoe UI", 8, FontStyle.Regular),
-                Size = new Size(width, 45),
+                Image = IconToBitmap(icon, 24),
+                Font = new Font("Microsoft YaHei UI", 9f, FontStyle.Regular),
+                Size = new Size(width, 36),
                 Location = pos,
-                FlatStyle = FlatStyle.Standard,
-                Padding = new Padding(8, 0, 0, 0),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(35, 46, 64),
+                BorderColor = Color.FromArgb(204, 213, 225),
+                HoverBackColor = Color.FromArgb(238, 244, 252),
+                PressedBackColor = Color.FromArgb(224, 236, 249),
+                IconSize = 24,
+                AutoEllipsis = true,
                 Cursor = Cursors.Hand
             };
-            originalBmp.Dispose();
             btn.Click += (_, __) => onClick();
             return btn;
         }
 
         private Button CreateAboutButton(string text, System.Drawing.Icon icon, Point pos)
         {
-            var btn = CreateLinkButton(text, icon, pos, 80, () =>
+            var btn = CreateLinkButton(text, icon, pos, 132, () =>
             {
                 using var f = new AboutForm();
                 f.ShowDialog();
@@ -164,20 +158,23 @@ namespace ArknightsLauncher.Forms
 
         private static Button MakeGameButton(string text, System.Drawing.Icon icon, Point pos, Size size)
         {
-            return new Button
+            var btn = new StyledIconButton
             {
                 Text = text,
-                Image = icon.ToBitmap(),
-                ImageAlign = ContentAlignment.MiddleLeft,
-                TextAlign = ContentAlignment.MiddleCenter,
-                TextImageRelation = TextImageRelation.ImageBeforeText,
-                Font = new Font("Segoe UI", 11, FontStyle.Regular),
+                Image = IconToBitmap(icon, 48),
+                Font = new Font("Microsoft YaHei UI", 10.5f, FontStyle.Bold),
                 Size = size,
                 Location = pos,
-                FlatStyle = FlatStyle.Standard,
-                Padding = new Padding(10, 0, 0, 0),
+                BackColor = Color.White,
+                ForeColor = Color.FromArgb(23, 33, 48),
+                BorderColor = Color.FromArgb(201, 211, 224),
+                HoverBackColor = Color.FromArgb(235, 243, 253),
+                PressedBackColor = Color.FromArgb(220, 234, 250),
+                IconSize = 48,
+                AutoEllipsis = true,
                 Cursor = Cursors.Hand
             };
+            return btn;
         }
     }
 }

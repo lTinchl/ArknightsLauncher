@@ -4,9 +4,10 @@ namespace ArknightsLauncher.Helpers
 {
     public static class AppInfo
     {
-        public static readonly Version CurrentVersion = new Version("1.3.5.7");
+        public static readonly Version CurrentVersion = new Version("1.3.5.8");
 
         public const string GitHubUrl        = "https://github.com/lTinchl/ArknightsLauncher";
+        public const string GitHubReleasesUrl = "https://github.com/lTinchl/ArknightsLauncher/releases";
         public const string QuarkPanUrl      = "https://pan.quark.cn/s/eb6c9c0e45df";
         public const string ArknightsYituliuUrl  = "https://ark.yituliu.cn/";
         public const string ArknightsToolboxUrl  = "https://arkntools.app/";

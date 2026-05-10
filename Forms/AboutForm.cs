@@ -81,33 +81,11 @@ namespace ArknightsLauncher.Forms
             linkGitHub.FlatAppearance.MouseDownBackColor = Color.Transparent;
             linkGitHub.Click += (_, __) => BrowserHelper.OpenGitHub();
 
-            var labelSource = new Label
-            {
-                Text = "更新源：",
-                Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                AutoSize = true,
-                Location = new Point(0, 225)
-            };
-
-            var comboSource = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                Size = new Size(120, 25),
-                Location = new Point(0, 220)
-            };
-            comboSource.Items.AddRange(new string[] { "GitHub", "国内服务器(低速)" });
-            comboSource.SelectedIndex = 0;
-
-            int groupWidth = labelSource.PreferredWidth + 4 + comboSource.Width;
-            labelSource.Left = (ClientSize.Width - groupWidth) / 2;
-            comboSource.Left = labelSource.Left + labelSource.PreferredWidth + 4;
-
             var btnUpdate = new Button
             {
                 Text = "检查更新",
                 Size = new Size(100, 30),
-                Location = new Point(0, 255),
+                Location = new Point(0, 225),
                 FlatStyle = FlatStyle.System,
                 Cursor = Cursors.Hand
             };
@@ -117,19 +95,17 @@ namespace ArknightsLauncher.Forms
             {
                 btnUpdate.Enabled = false;
                 btnUpdate.Text = "检查中...";
-                bool useChina = comboSource.SelectedIndex == 1;
                 try
                 {
-                    var (hasUpdate, latestVersion, downloadUrl) = await UpdateHelper.CheckForUpdateAsync(useChina);
+                    var (hasUpdate, latestVersion, downloadUrl) = await UpdateHelper.CheckForUpdateAsync();
                     if (hasUpdate)
                     {
                         var result = MessageBox.Show(
-                            $"发现新版本 v{latestVersion}，是否立即下载？",
+                            $"发现新版本 v{latestVersion}，是否打开 GitHub Releases 手动下载？",
                             "有新版本", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
                         if (result == DialogResult.Yes)
                         {
-                            await UpdateHelper.DownloadAndInstallAsync(downloadUrl, btnUpdate, "检查更新");
-                            return;
+                            BrowserHelper.Open(downloadUrl);
                         }
                     }
                     else
@@ -139,16 +115,9 @@ namespace ArknightsLauncher.Forms
                 }
                 catch (TaskCanceledException)
                 {
-                    if (comboSource.SelectedItem?.ToString() == "GitHub") {
-                        if (MessageBox.Show("连接超时，是否打开浏览器手动下载？", "检查更新失败",
-                            MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                        BrowserHelper.OpenGitHub();
-                        }
-                    else if (comboSource.SelectedItem?.ToString() == "国内服务器(低速)") {
-                        if (MessageBox.Show("连接超时，是否打开浏览器手动下载？", "检查更新失败",
-                                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
-                        BrowserHelper.OpenQuarkPan();
-                        };
+                    if (MessageBox.Show("连接超时，是否打开 GitHub Releases 手动下载？", "检查更新失败",
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                        BrowserHelper.OpenGitHubReleases();
                 }
                 catch (HttpRequestException ex)
                 {
@@ -168,7 +137,7 @@ namespace ArknightsLauncher.Forms
             Controls.AddRange(new Control[]
             {
                 picBox, labelName, labelVersion, labelDesc, linkGitHub,
-                labelSource, comboSource, btnUpdate
+                btnUpdate
             });
         }
 

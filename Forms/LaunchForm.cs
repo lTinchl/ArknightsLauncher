@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArknightsLauncher.Helpers;
+using ArknightsLauncher.Models;
 
 namespace ArknightsLauncher.Forms
 {
@@ -20,20 +21,20 @@ namespace ArknightsLauncher.Forms
 
             Text = serverType switch
             {
-                ServerType.Official    => "Arknights Launcher(官服)",
-                ServerType.Bilibili    => "Arknights Launcher(B服)",
-                ServerType.MAA_Official => "MAA(官服)",
-                ServerType.MAA_Bilibili => "MAA(B服)",
-                _                      => "Launcher"
+                ServerType.Official => "Arknights Launcher(官服)",
+                ServerType.Bilibili => "Arknights Launcher(B服)",
+                ServerType.LinkedSoftwareOfficial => "官服联动软件",
+                ServerType.LinkedSoftwareBilibili => "B服联动软件",
+                _ => "Launcher"
             };
 
             Icon = serverType switch
             {
-                ServerType.Official    => ResourceHelper.LoadIcon("official.ico"),
-                ServerType.Bilibili    => ResourceHelper.LoadIcon("bserver.ico"),
-                ServerType.MAA_Official => ResourceHelper.LoadIcon("MAA.ico"),
-                ServerType.MAA_Bilibili => ResourceHelper.LoadIcon("MAA.ico"),
-                _                      => SystemIcons.Application
+                ServerType.Official => ResourceHelper.LoadIcon("official.ico"),
+                ServerType.Bilibili => ResourceHelper.LoadIcon("bserver.ico"),
+                ServerType.LinkedSoftwareOfficial => ResourceHelper.LoadIcon("MAA.ico"),
+                ServerType.LinkedSoftwareBilibili => ResourceHelper.LoadIcon("MAA.ico"),
+                _ => SystemIcons.Application
             };
 
             StartPosition = FormStartPosition.CenterScreen;
@@ -45,8 +46,8 @@ namespace ArknightsLauncher.Forms
 
             statusLabel = new Label
             {
-                Text = (_serverType == ServerType.MAA_Official || _serverType == ServerType.MAA_Bilibili)
-                       ? "正在启动 MAA…"
+                Text = IsLinkedSoftware(_serverType)
+                       ? $"正在启动{GetLinkedSoftwareScopeName(_serverType)}联动软件…"
                        : "正在启动 Arknights…",
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -62,23 +63,23 @@ namespace ArknightsLauncher.Forms
             {
                 var cfg = ConfigHelper.Load();
 
-                if (_serverType == ServerType.MAA_Official || _serverType == ServerType.MAA_Bilibili)
+                if (IsLinkedSoftware(_serverType))
                 {
-                    string exePath = _serverType == ServerType.MAA_Official ? cfg.MAA_Official : cfg.MAA_Bilibili;
-
-                    if (string.IsNullOrEmpty(exePath) || !File.Exists(exePath))
+                    bool isOfficialLinkedSoftware = _serverType == ServerType.LinkedSoftwareOfficial;
+                    if (!cfg.IsLinkedSoftwareEnabled(isOfficialLinkedSoftware))
                     {
-                        exePath = (string)this.Invoke((Func<string>)(() =>
-                            DialogHelper.SelectExe("请选择 MAA.exe", "MAA 程序")));
-
-                        if (string.IsNullOrEmpty(exePath)) return;
-
-                        if (_serverType == ServerType.MAA_Official) cfg.MAA_Official = exePath;
-                        else cfg.MAA_Bilibili = exePath;
-                        ConfigHelper.Save(cfg);
+                        MessageBox.Show($"{(isOfficialLinkedSoftware ? "官服" : "B服")}联动软件开关已关闭，请在设置中开启。", "提示");
+                        return;
                     }
 
-                    GameLauncher.StartMAA(exePath);
+                    var softwares = cfg.GetLinkedSoftwareItems(isOfficialLinkedSoftware);
+                    if (softwares.Count == 0)
+                    {
+                        softwares = SelectAndSaveLinkedSoftware(isOfficialLinkedSoftware);
+                        if (softwares.Count == 0) return;
+                    }
+
+                    GameLauncher.StartLinkedSoftwares(softwares);
                     await Task.Delay(1000);
                 }
                 else
@@ -101,6 +102,10 @@ namespace ArknightsLauncher.Forms
                     await Task.Run(() => ResourceHelper.ExtractAndOverwrite(rootPath, zipResourceName));
 
                     GameLauncher.StartArknights(rootPath);
+                    bool isOfficial = _serverType == ServerType.Official;
+                    if (cfg.IsLinkedSoftwareEnabled(isOfficial))
+                        GameLauncher.StartLinkedSoftwares(cfg.GetLinkedSoftwareItems(isOfficial), requireAny: false);
+
                     await Task.Delay(2500);
                 }
             }
@@ -112,6 +117,41 @@ namespace ArknightsLauncher.Forms
             {
                 this.Invoke(() => this.Close());
             }
+        }
+
+        private bool IsLinkedSoftware(ServerType serverType)
+        {
+            return serverType == ServerType.LinkedSoftwareOfficial
+                || serverType == ServerType.LinkedSoftwareBilibili;
+        }
+
+        private string GetLinkedSoftwareScopeName(ServerType serverType)
+        {
+            return serverType == ServerType.LinkedSoftwareBilibili ? "B服" : "官服";
+        }
+
+        private System.Collections.Generic.List<LinkedSoftwareItem> SelectAndSaveLinkedSoftware(bool isOfficial)
+        {
+            string scopeName = isOfficial ? "官服" : "B服";
+            string exePath = (string)this.Invoke((Func<string>)(() =>
+                DialogHelper.SelectExe($"请选择{scopeName}联动软件", "可执行文件")));
+            if (string.IsNullOrEmpty(exePath))
+                return new System.Collections.Generic.List<LinkedSoftwareItem>();
+
+            var cfg = ConfigHelper.Load();
+            cfg.NormalizeLinkedSoftwares(isOfficial);
+            var target = isOfficial ? cfg.LinkedSoftwaresOfficial : cfg.LinkedSoftwaresBilibili;
+            if (!target.Exists(item => string.Equals(item.Path, exePath, StringComparison.OrdinalIgnoreCase)))
+            {
+                target.Add(new LinkedSoftwareItem
+                {
+                    Name = Path.GetFileNameWithoutExtension(exePath),
+                    Path = exePath
+                });
+                ConfigHelper.Save(cfg);
+            }
+
+            return cfg.GetLinkedSoftwareItems(isOfficial);
         }
     }
 }
