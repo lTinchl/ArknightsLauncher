@@ -4,7 +4,7 @@ namespace ArknightsLauncher.Helpers
 {
     public static class AppInfo
     {
-        public static readonly Version CurrentVersion = new Version("1.3.5.8");
+        public static readonly Version CurrentVersion = new Version("1.3.5.9");
 
         public const string GitHubUrl        = "https://github.com/lTinchl/ArknightsLauncher";
         public const string GitHubReleasesUrl = "https://github.com/lTinchl/ArknightsLauncher/releases";
