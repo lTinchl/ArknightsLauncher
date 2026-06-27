@@ -32,6 +32,9 @@ namespace ArknightsLauncher.Models
         public bool AutoLaunchOfficial { get; set; } = false;               // 启动时自动打开官服
         public bool AutoLaunchBilibili { get; set; } = false;               // 启动时自动打开B服
         public bool ExitAfterLaunch { get; set; } = false;                    // 游戏启动完毕后自动关闭软件
+        public string SklandToken { get; set; } = "";                       // 森空岛 SKYLAND_TOKEN
+        public bool ShowSklandToken { get; set; } = false;                  // 是否显示森空岛 token
+        public bool AutoSklandSignOnStartup { get; set; } = false;          // 软件启动时自动森空岛签到
 
         public string GetLinkedSoftwareOfficialName()
         {

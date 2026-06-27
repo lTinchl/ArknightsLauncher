@@ -97,12 +97,12 @@ namespace ArknightsLauncher.Forms
                         ConfigHelper.Save(cfg);
                     }
 
-                    string zipResourceName = _serverType == ServerType.Official ? "Payload.zip" : "Payload_B.zip";
+                    bool isOfficial = _serverType == ServerType.Official;
                     await Task.Delay(1000);
-                    await Task.Run(() => ResourceHelper.ExtractAndOverwrite(rootPath, zipResourceName));
+                    statusLabel.Text = "正在准备切服文件（硬链接优先）...";
+                    await Task.Run(() => ResourceHelper.LinkLoadPayloadAndOverwrite(rootPath, isOfficial));
 
                     GameLauncher.StartArknights(rootPath);
-                    bool isOfficial = _serverType == ServerType.Official;
                     if (cfg.IsLinkedSoftwareEnabled(isOfficial))
                         GameLauncher.StartLinkedSoftwares(cfg.GetLinkedSoftwareItems(isOfficial), requireAny: false);
 
