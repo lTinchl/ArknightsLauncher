@@ -172,8 +172,41 @@ namespace ArknightsLauncher.Forms
             catch { }
 
             var autoCfg = ConfigHelper.Load();
+            if (autoCfg.AutoSklandSignOnStartup)
+                _ = RunSklandStartupSignAsync(autoCfg.SklandToken);
+
             if (autoCfg.AutoLaunchOfficial)       _officialBtn.PerformClick();
             else if (autoCfg.AutoLaunchBilibili)  _bServerBtn.PerformClick();
+        }
+
+        private async Task RunSklandStartupSignAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return;
+
+            try
+            {
+                string result = await SklandSignHelper.SignAsync(token);
+                ShowSklandStartupTip("森空岛签到完成", result, ToolTipIcon.Info);
+            }
+            catch (Exception ex)
+            {
+                ShowSklandStartupTip("森空岛签到失败", ex.Message, ToolTipIcon.Warning);
+            }
+        }
+
+        private void ShowSklandStartupTip(string title, string message, ToolTipIcon icon)
+        {
+            if (IsDisposed) return;
+
+            void ShowTip()
+            {
+                if (_trayIcon != null && _trayIcon.Visible)
+                    _trayIcon.ShowBalloonTip(5000, title, message, icon);
+            }
+
+            if (InvokeRequired) BeginInvoke((Action)ShowTip);
+            else ShowTip();
         }
 
         public void UpdateTrayVisibility(bool visible)

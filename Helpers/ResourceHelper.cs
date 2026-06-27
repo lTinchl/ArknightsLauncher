@@ -1,14 +1,16 @@
-using System.Drawing;
 using System.IO;
-using System.IO.Compression;
 using System.Reflection;
+using System;
+using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace ArknightsLauncher.Helpers
 {
     public static class ResourceHelper
     {
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool CreateHardLink(string lpFileName, string lpExistingFileName, IntPtr lpSecurityAttributes);
+
         public static System.Drawing.Icon LoadIcon(string name)
         {
             var asm = Assembly.GetExecutingAssembly();
@@ -16,28 +18,45 @@ namespace ArknightsLauncher.Helpers
             return stream != null ? new System.Drawing.Icon(stream) : System.Drawing.SystemIcons.Application;
         }
 
-        public static void ExtractAndOverwrite(string targetRoot, string zipResourceName)
+        public static string GetLoadPayloadDirectory(bool isOfficial)
         {
-            var asm = Assembly.GetExecutingAssembly();
-            string tempZipPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"temp_{zipResourceName}");
+            string folderName = isOfficial ? "ArkOfficial" : "ArkBilibili";
+            return Path.Combine(System.AppContext.BaseDirectory, "load", folderName);
+        }
 
-            try
+        public static bool LinkLoadPayloadAndOverwrite(string targetRoot, bool isOfficial)
+        {
+            string sourceRoot = GetLoadPayloadDirectory(isOfficial);
+            if (!Directory.Exists(sourceRoot))
+                throw new System.Exception($"未找到加载文件目录: {sourceRoot}");
+
+            return HardLinkOrCopyDirectory(sourceRoot, targetRoot);
+        }
+
+        public static bool HardLinkOrCopyDirectory(string sourceRoot, string targetRoot)
+        {
+            sourceRoot = Path.GetFullPath(sourceRoot).TrimEnd(Path.DirectorySeparatorChar);
+            targetRoot = Path.GetFullPath(targetRoot).TrimEnd(Path.DirectorySeparatorChar);
+
+            Directory.CreateDirectory(targetRoot);
+            bool sameVolume = OnSameVolume(sourceRoot, targetRoot);
+            bool usedHardLinkForAllFiles = sameVolume;
+
+            foreach (var sourceFile in Directory.GetFiles(sourceRoot, "*", SearchOption.AllDirectories))
             {
-                using (Stream resourceStream = asm.GetManifestResourceStream($"ArknightsLauncher.{zipResourceName}"))
-                {
-                    if (resourceStream == null)
-                        throw new System.Exception($"未找到嵌入的资源: {zipResourceName}");
+                string relativePath = sourceFile.Substring(sourceRoot.Length + 1);
+                string targetFile = Path.Combine(targetRoot, relativePath);
+                string targetDir = Path.GetDirectoryName(targetFile);
+                if (!string.IsNullOrEmpty(targetDir))
+                    Directory.CreateDirectory(targetDir);
 
-                    using (FileStream fileStream = new FileStream(tempZipPath, FileMode.Create, FileAccess.Write))
-                        resourceStream.CopyTo(fileStream);
-                }
-
-                int maxRetry = 5;
+                const int maxRetry = 5;
                 for (int i = 0; i < maxRetry; i++)
                 {
                     try
                     {
-                        ZipFile.ExtractToDirectory(tempZipPath, targetRoot, true);
+                        if (!HardLinkOrCopyFile(sourceFile, targetFile, sameVolume))
+                            usedHardLinkForAllFiles = false;
                         break;
                     }
                     catch (IOException) when (i < maxRetry - 1)
@@ -46,11 +65,27 @@ namespace ArknightsLauncher.Helpers
                     }
                 }
             }
-            finally
-            {
-                if (File.Exists(tempZipPath))
-                    File.Delete(tempZipPath);
-            }
+
+            return usedHardLinkForAllFiles;
+        }
+
+        private static bool OnSameVolume(string pathA, string pathB)
+        {
+            string rootA = Path.GetPathRoot(Path.GetFullPath(pathA));
+            string rootB = Path.GetPathRoot(Path.GetFullPath(pathB));
+            return string.Equals(rootA, rootB, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HardLinkOrCopyFile(string sourceFile, string targetFile, bool sameVolume)
+        {
+            if (File.Exists(targetFile))
+                File.Delete(targetFile);
+
+            if (sameVolume && CreateHardLink(targetFile, sourceFile, IntPtr.Zero))
+                return true;
+
+            File.Copy(sourceFile, targetFile, true);
+            return false;
         }
     }
 }

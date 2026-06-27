@@ -13,6 +13,7 @@ namespace ArknightsLauncher.Forms
         private Panel _contentPanel;
         private Panel _pagePath;
         private Panel _pageLinkedSoftware;
+        private Panel _pageSkland;
         private Panel _pageSoftware;
 
         public SettingsForm()
@@ -28,6 +29,7 @@ namespace ArknightsLauncher.Forms
             BuildLayout();
             BuildPagePath();
             BuildPageLinkedSoftware();
+            BuildPageSkland();
             BuildPageSoftware();
             ShowPage("路径设置");
         }
@@ -44,7 +46,7 @@ namespace ArknightsLauncher.Forms
                 e.Graphics.DrawLine(new System.Drawing.Pen(Color.FromArgb(220, 220, 220)),
                     _navPanel.Width - 1, 0, _navPanel.Width - 1, _navPanel.Height);
 
-            string[] pages = { "路径设置", "联动软件", "软件设置" };
+            string[] pages = { "路径设置", "联动软件", "森空岛签到", "软件设置" };
             for (int i = 0; i < pages.Length; i++)
             {
                 string pageName = pages[i];
@@ -92,6 +94,7 @@ namespace ArknightsLauncher.Forms
 
             _pagePath.Visible     = pageName == "路径设置";
             _pageLinkedSoftware.Visible = pageName == "联动软件";
+            _pageSkland.Visible = pageName == "森空岛签到";
             _pageSoftware.Visible = pageName == "软件设置";
         }
 
@@ -239,6 +242,312 @@ namespace ArknightsLauncher.Forms
                 Location = new Point(0, 26),
                 BackColor = Color.FromArgb(220, 220, 220)
             });
+        }
+
+        private void BuildPageSkland()
+        {
+            _pageSkland = new Panel { Dock = DockStyle.Fill, Visible = false };
+            var cfg = ConfigHelper.Load();
+            string tokenText = cfg.SklandToken;
+            bool tokenVisible = cfg.ShowSklandToken;
+
+            AddTitle(_pageSkland, "森空岛签到");
+
+            _pageSkland.Controls.Add(new Label
+            {
+                Text = "SKYLAND_TOKEN：",
+                AutoSize = true,
+                Location = new Point(0, 50),
+                Font = new Font("Segoe UI", 9f),
+                ForeColor = Color.FromArgb(60, 60, 60)
+            });
+
+            var txtToken = new TextBox
+            {
+                Text = tokenVisible ? tokenText : MaskTokenText(tokenText),
+                ReadOnly = !tokenVisible,
+                Size = new Size(338, 50),
+                Location = new Point(0, 68),
+                Font = new Font("Segoe UI", 9f),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical
+            };
+            txtToken.TextChanged += (_, __) =>
+            {
+                if (!tokenVisible) return;
+                tokenText = txtToken.Text;
+                var c = ConfigHelper.Load();
+                c.SklandToken = tokenText;
+                ConfigHelper.Save(c);
+            };
+
+            var btnToggleToken = new Button
+            {
+                Text = tokenVisible ? "🙈" : "👁",
+                Size = new Size(36, 26),
+                Location = new Point(344, 68),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 9f)
+            };
+
+            btnToggleToken.Click += (_, __) =>
+            {
+                if (tokenVisible)
+                    tokenText = txtToken.Text;
+
+                tokenVisible = !tokenVisible;
+                txtToken.ReadOnly = !tokenVisible;
+                txtToken.Text = tokenVisible ? tokenText : MaskTokenText(tokenText);
+                btnToggleToken.Text = tokenVisible ? "🙈" : "👁";
+
+                var c = ConfigHelper.Load();
+                c.SklandToken = tokenText;
+                c.ShowSklandToken = tokenVisible;
+                ConfigHelper.Save(c);
+            };
+
+            void SaveTokenText()
+            {
+                var c = ConfigHelper.Load();
+                c.SklandToken = tokenText;
+                ConfigHelper.Save(c);
+            }
+
+            void AppendToken(string token)
+            {
+                if (string.IsNullOrWhiteSpace(token))
+                    return;
+
+                var tokens = tokenText
+                    .Replace("\r", "\n")
+                    .Replace(';', '\n')
+                    .Replace(',', '\n')
+                    .Split('\n', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries)
+                    .ToList();
+
+                if (!tokens.Any(item => string.Equals(item, token, System.StringComparison.Ordinal)))
+                    tokens.Add(token);
+
+                tokenText = string.Join(System.Environment.NewLine, tokens);
+                txtToken.Text = tokenVisible ? tokenText : MaskTokenText(tokenText);
+                SaveTokenText();
+            }
+
+            var btnQrLogin = new Button
+            {
+                Text = "扫码获取",
+                Size = new Size(82, 28),
+                Location = new Point(0, 128),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 9f)
+            };
+
+            btnQrLogin.Click += (_, __) =>
+            {
+                using var form = new SklandQrLoginForm();
+                if (form.ShowDialog(this) == DialogResult.OK)
+                    AppendToken(form.Token);
+            };
+
+            var txtPhone = new TextBox
+            {
+                Size = new Size(116, 24),
+                Location = new Point(0, 166),
+                Font = new Font("Segoe UI", 9f),
+                PlaceholderText = "手机号"
+            };
+
+            var txtCode = new TextBox
+            {
+                Size = new Size(82, 24),
+                Location = new Point(124, 166),
+                Font = new Font("Segoe UI", 9f),
+                PlaceholderText = "验证码"
+            };
+
+            var btnSendCode = new Button
+            {
+                Text = "发送验证码",
+                Size = new Size(88, 26),
+                Location = new Point(214, 165),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+
+            var btnCodeLogin = new Button
+            {
+                Text = "验证码登录",
+                Size = new Size(88, 26),
+                Location = new Point(310, 165),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+
+            var txtPassword = new TextBox
+            {
+                Size = new Size(206, 24),
+                Location = new Point(0, 200),
+                Font = new Font("Segoe UI", 9f),
+                PlaceholderText = "密码",
+                UseSystemPasswordChar = true
+            };
+
+            var btnPasswordLogin = new Button
+            {
+                Text = "账号密码登录",
+                Size = new Size(98, 26),
+                Location = new Point(214, 199),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 8.5f)
+            };
+
+            var btnSign = new Button
+            {
+                Text = "立即签到",
+                Size = new Size(82, 28),
+                Location = new Point(92, 128),
+                Cursor = Cursors.Hand,
+                FlatStyle = FlatStyle.System,
+                Font = new Font("Segoe UI", 9f)
+            };
+
+            var chkAutoSign = new CheckBox
+            {
+                Text = "启动时签到",
+                AutoSize = true,
+                Location = new Point(188, 132),
+                Font = new Font("Segoe UI", 9f),
+                Checked = cfg.AutoSklandSignOnStartup,
+                Cursor = Cursors.Hand
+            };
+            chkAutoSign.CheckedChanged += (_, __) =>
+            {
+                var c = ConfigHelper.Load();
+                c.AutoSklandSignOnStartup = chkAutoSign.Checked;
+                ConfigHelper.Save(c);
+            };
+
+            var txtResult = new TextBox
+            {
+                Size = new Size(380, 86),
+                Location = new Point(0, 240),
+                Font = new Font("Segoe UI", 9f),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical
+            };
+
+            btnSendCode.Click += async (_, __) =>
+            {
+                btnSendCode.Enabled = false;
+                txtResult.Text = "正在发送验证码...";
+                try
+                {
+                    await SklandSignHelper.SendPhoneCodeAsync(txtPhone.Text.Trim());
+                    txtResult.Text = "验证码已发送";
+                }
+                catch (System.Exception ex)
+                {
+                    txtResult.Text = ex.Message;
+                }
+                finally
+                {
+                    btnSendCode.Enabled = true;
+                }
+            };
+
+            btnCodeLogin.Click += async (_, __) =>
+            {
+                btnCodeLogin.Enabled = false;
+                txtResult.Text = "正在通过验证码获取 token...";
+                try
+                {
+                    AppendToken(await SklandSignHelper.LoginByPhoneCodeAsync(txtPhone.Text.Trim(), txtCode.Text.Trim()));
+                    txtResult.Text = "token 获取成功";
+                }
+                catch (System.Exception ex)
+                {
+                    txtResult.Text = ex.Message;
+                }
+                finally
+                {
+                    btnCodeLogin.Enabled = true;
+                }
+            };
+
+            btnPasswordLogin.Click += async (_, __) =>
+            {
+                btnPasswordLogin.Enabled = false;
+                txtResult.Text = "正在通过账号密码获取 token...";
+                try
+                {
+                    AppendToken(await SklandSignHelper.LoginByPasswordAsync(txtPhone.Text.Trim(), txtPassword.Text));
+                    txtResult.Text = "token 获取成功";
+                }
+                catch (System.Exception ex)
+                {
+                    txtResult.Text = ex.Message;
+                }
+                finally
+                {
+                    btnPasswordLogin.Enabled = true;
+                }
+            };
+
+            btnSign.Click += async (_, __) =>
+            {
+                btnSign.Enabled = false;
+                txtResult.Text = "正在签到...";
+                try
+                {
+                    if (tokenVisible)
+                        tokenText = txtToken.Text;
+                    txtResult.Text = await SklandSignHelper.SignAsync(tokenText);
+                }
+                catch (System.Exception ex)
+                {
+                    txtResult.Text = ex.Message;
+                }
+                finally
+                {
+                    btnSign.Enabled = true;
+                }
+            };
+
+            _pageSkland.Controls.AddRange(new Control[]
+            {
+                txtToken, btnToggleToken, btnQrLogin, btnSign, chkAutoSign, txtPhone, txtCode,
+                btnSendCode, btnCodeLogin, txtPassword, btnPasswordLogin, txtResult
+            });
+            _contentPanel.Controls.Add(_pageSkland);
+        }
+
+        private static string MaskTokenText(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return "";
+
+            var lines = value
+                .Replace("\r", "\n")
+                .Split('\n')
+                .Select(line =>
+                {
+                    string token = line.Trim();
+                    if (token.Length == 0) return "";
+                    if (token.Length <= 8) return new string('●', token.Length);
+                    return token.Substring(0, 4) + new string('●', 8) + token.Substring(token.Length - 4);
+                });
+
+            return string.Join(System.Environment.NewLine, lines);
         }
 
         private void AddTextRow(Panel page, string label, string currentValue, int y,
