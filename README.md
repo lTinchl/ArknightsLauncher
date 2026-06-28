@@ -24,26 +24,26 @@
 ### 文件结构
 ```
 ├── Icons                    # 图标文件夹
-├── Payload.zip              # 官服替换用文件
-├── Payload_B.zip            # B服替换用文件
+├── load                     # 官服/B服切换文件
+│   ├── ArkOfficial          # 官服切换文件
+│   └── ArkBilibili          # B服切换文件
 └── Program.cs               # 程序入口
 ```
 
 ## 注意事项
+- 可以将软件与游戏放在同一磁盘下，将会使用硬链接方式切服，避免重复读写磁盘
 - 软件的选择根目录缓存在(```C:\Users\用户名\AppData\Local\ArknightsLauncher\```),名字为```config.json```，如果需要重置软件请删除此文件
 - 账号文件默认保存在(```C:\Users\用户名\AppData\Local\ArknightsLauncher\AccountBackups```)，如果需要重置账号请删除此目录
 
 ## 如何使用
-在Releases下载最新版本的应用程序，下载完成后打开软件，选择游戏根目录，点击对应服务器启动
+在Releases下载最新版本压缩包，解压后运行 `ArknightsLauncher.exe`，选择游戏根目录，点击对应服务器启动
 - 详情请翻阅[WiKi](https://github.com/lTinchl/ArknightsLauncher/wiki/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8)
 
 ## 已支持功能
 - [x] 双服切换
 - [x] 官服账号切换
 - [x] 官服/B服多联动软件自定义启动
-- [x] 明日方舟WIKI
-- [x] 明日方舟工具箱
-- [x] 明日方舟一图流
+- [x] 森空岛签到
       
 ## 特别鸣谢
 
