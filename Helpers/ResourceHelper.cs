@@ -78,14 +78,43 @@ namespace ArknightsLauncher.Helpers
 
         private static bool HardLinkOrCopyFile(string sourceFile, string targetFile, bool sameVolume)
         {
-            if (File.Exists(targetFile))
-                File.Delete(targetFile);
-
-            if (sameVolume && CreateHardLink(targetFile, sourceFile, IntPtr.Zero))
+            if (sameVolume && TryReplaceWithHardLink(sourceFile, targetFile))
                 return true;
 
-            File.Copy(sourceFile, targetFile, true);
+            ReplaceFileByCopy(sourceFile, targetFile);
             return false;
+        }
+
+        private static bool TryReplaceWithHardLink(string sourceFile, string targetFile)
+        {
+            try
+            {
+                DeleteTargetFile(targetFile);
+                return CreateHardLink(targetFile, sourceFile, IntPtr.Zero);
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        private static void ReplaceFileByCopy(string sourceFile, string targetFile)
+        {
+            DeleteTargetFile(targetFile);
+            File.Copy(sourceFile, targetFile, true);
+        }
+
+        private static void DeleteTargetFile(string targetFile)
+        {
+            if (!File.Exists(targetFile))
+                return;
+
+            File.SetAttributes(targetFile, FileAttributes.Normal);
+            File.Delete(targetFile);
         }
     }
 }

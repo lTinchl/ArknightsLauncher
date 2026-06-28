@@ -80,18 +80,13 @@ namespace ArknightsLauncher.Forms
                     }
                 }
 
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(4000);
-                    await launchForm.RunCore();
-                    this.Invoke(() =>
-                    {
-                        if (ConfigHelper.Load().ExitAfterLaunch)
-                            Application.Exit();
-                        else
-                            this.Show();
-                    });
-                });
+                await Task.Delay(4000);
+                await launchForm.RunCore();
+
+                if (ConfigHelper.Load().ExitAfterLaunch)
+                    Application.Exit();
+                else
+                    this.Show();
             };
 
             return btn;
@@ -114,11 +109,8 @@ namespace ArknightsLauncher.Forms
                 var launchForm = new LaunchForm(type);
                 launchForm.Show();
 
-                _ = Task.Run(async () =>
-                {
-                    await launchForm.RunCore();
-                    this.Invoke(() => this.Show());
-                });
+                await launchForm.RunCore();
+                this.Show();
             };
 
             return btn;
