@@ -1,6 +1,7 @@
-<div align="center">
+> [!CAUTION]
+> 此项目功能已整合迁移至[新项目](https://github.com/lTinchl/Xel-Launcher);项目进入不定期维护状态
 
-# 此项目功能以整合迁移至[新项目](https://github.com/lTinchl/Xel-Launcher);项目进入不定期维护状态;
+<div align="center">
 
 <img width="252" height="252" alt="image" src="https://github.com/user-attachments/assets/d7ea569c-68ff-49b7-ae0c-3939b5c08c26" /> 
 
