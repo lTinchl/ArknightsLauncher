@@ -2,10 +2,17 @@
 
 	<PropertyGroup>
 		<AssemblyName>ArknightsLauncher</AssemblyName>
-		
+
+
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net8.0-windows</TargetFramework>
+
+		<!-- 启用 WPF 界面框架 -->
+		<UseWPF>true</UseWPF>
+
+		<!-- 暂时保留 WinForms -->
 		<UseWindowsForms>true</UseWindowsForms>
+
 
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>	
 		<SelfContained>true</SelfContained>		
@@ -42,5 +49,12 @@
 		<EmbeddedResource Include="Icons\Setting.ico" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <PackageReference Include="HandyControls" Version="3.7.0" />
+	  <PackageReference Include="HandyControls.Lang.zh-CN" Version="3.7.0" />
+	</ItemGroup>
+
 </Project>
+
+
 

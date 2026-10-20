@@ -1,7 +1,9 @@
+﻿using ArknightsLauncher.Forms;
+using ArknightsLauncher.Helpers;
+using ArknightsLauncher.Views;
+using System;
 using System.IO;
 using System.Windows.Forms;
-using ArknightsLauncher.Forms;
-using ArknightsLauncher.Helpers;
 
 namespace ArknightsLauncher
 {
@@ -16,14 +18,27 @@ namespace ArknightsLauncher
 
     static class Program
     {
-        [System.STAThread]
+        [STAThread]
         static void Main()
         {
-            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Directory.CreateDirectory(ConfigHelper.AccountBackupDir);
-            Application.Run(new ServerSelectForm());
+            Directory.CreateDirectory(
+                ConfigHelper.AccountBackupDir
+            );
+
+            var app = new System.Windows.Application();
+            app.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+            {
+                Source = new Uri("Views/Themes/LauncherTheme.xaml", UriKind.Relative)
+            });
+            HandyControl.Themes.ThemeManager.Current.UsingWindowsAppTheme = false;
+            HandyControl.Themes.ThemeManager.Current.ApplicationTheme = HandyControl.Themes.ApplicationTheme.Dark;
+
+            app.Run(
+                new ArknightsLauncher.Views.MainWindow()
+            );
         }
+
     }
 }
+
+
